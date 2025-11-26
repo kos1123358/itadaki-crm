@@ -1,0 +1,108 @@
+.App {
+  text-align: center;
+}
+
+.site-layout-content {
+  min-height: 280px;
+  padding: 24px;
+  background: #fff;
+}
+
+.customer-detail-section {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 20px;
+}
+
+.stat-card h2 {
+  margin: 0;
+  font-size: 32px;
+  color: #1890ff;
+}
+
+.stat-card p {
+  margin: 8px 0 0;
+  color: #666;
+}
+
+/* レスポンシブ対応 */
+@media (min-width: 992px) {
+  .mobile-menu-button {
+    display: none;
+  }
+
+  .mobile-drawer {
+    display: none;
+  }
+}
+
+@media (max-width: 991px) {
+  .desktop-sider {
+    display: none !important;
+  }
+
+  .ant-layout {
+    padding: 8px !important;
+  }
+
+  .ant-layout-content {
+    padding: 12px !important;
+  }
+
+  h1 {
+    font-size: 20px !important;
+  }
+
+  h2 {
+    font-size: 18px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-card h2 {
+    font-size: 24px;
+  }
+
+  .ant-table {
+    font-size: 12px;
+  }
+
+  .ant-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .ant-card {
+    margin-bottom: 12px;
+  }
+
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    padding: 8px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .ant-layout-header {
+    padding: 0 8px !important;
+  }
+
+  .ant-layout-header div {
+    font-size: 16px !important;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-card h2 {
+    font-size: 20px;
+  }
+
+  .stat-card p {
+    font-size: 12px;
+  }
+}
