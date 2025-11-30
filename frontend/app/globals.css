@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@import "./styles.css";
+
+:root {
+  --background: #f0f2f5;
+  --foreground: #171717;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Call Work Footer - サイドバーの幅を考慮 */
+@media (min-width: 1024px) {
+  .call-work-footer {
+    left: 200px !important;
+  }
+}

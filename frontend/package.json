@@ -1,42 +1,29 @@
 {
-  "name": "itadaki-crm-frontend",
-  "version": "1.0.0",
-  "description": "人材紹介事業CRMシステムのフロントエンド",
+  "name": "frontend",
+  "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "axios": "^1.6.2",
-    "antd": "^5.12.0",
-    "@ant-design/icons": "^5.2.6",
-    "dayjs": "^1.11.10"
-  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.1.0",
+    "@supabase/supabase-js": "^2.86.0",
+    "antd": "^6.0.0",
+    "axios": "^1.13.2",
+    "dayjs": "^1.11.19",
+    "next": "16.0.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "react-scripts": "5.0.1"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "proxy": "http://localhost:5001"
+    "@playwright/test": "^1.57.0",
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.5",
+    "playwright": "^1.57.0",
+    "tailwindcss": "^4"
+  }
 }
