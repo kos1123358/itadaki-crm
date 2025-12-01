@@ -493,11 +493,17 @@ function debugCheckEmails() {
 }
 
 /**
- * 特定送信元からのメールを処理して流入日と流入元を更新
+ * 特定送信元からのメールを処理して流入日と流入元を更新（再開可能版）
  * snapjob_ad@roxx.co.jp → 送客NEXT
  * contact@jobseeker-navi.com → 送客ナビ
+ *
+ * タイムアウト対策: 進捗を保存して複数回実行で完了
+ * 使い方: 完了するまで繰り返し実行してください
  */
 function updateInflowDatesFromSpecificSenders() {
+  const START_TIME = new Date().getTime();
+  const MAX_RUNTIME_MS = 5 * 60 * 1000; // 5分（6分制限より1分余裕を持たせる）
+
   Logger.log('=== 特定送信元メールの流入日・流入元更新開始 ===');
 
   const SUPABASE_URL = PropertiesService.getScriptProperties().getProperty('SUPABASE_URL');
@@ -508,6 +514,14 @@ function updateInflowDatesFromSpecificSenders() {
     return;
   }
 
+  // 進捗を読み込み
+  const props = PropertiesService.getScriptProperties();
+  let progress = props.getProperty('updateInflowProgress');
+  progress = progress ? JSON.parse(progress) : { senderIndex: 0, threadIndex: 0, messageIndex: 0, processedEmails: [] };
+
+  Logger.log('再開位置: sender=' + progress.senderIndex + ', thread=' + progress.threadIndex + ', message=' + progress.messageIndex);
+  Logger.log('処理済みメール数: ' + progress.processedEmails.length);
+
   // 対象の送信元アドレスと対応する流入元名
   const senderConfig = [
     { email: 'snapjob_ad@roxx.co.jp', media: '送客NEXT', domain: 'roxx.co.jp' },
@@ -516,8 +530,10 @@ function updateInflowDatesFromSpecificSenders() {
 
   let totalProcessed = 0;
   let totalUpdated = 0;
+  let shouldStop = false;
 
-  for (const config of senderConfig) {
+  for (let si = progress.senderIndex; si < senderConfig.length && !shouldStop; si++) {
+    const config = senderConfig[si];
     Logger.log('--- 送信元: ' + config.email + ' (流入元: ' + config.media + ') ---');
 
     // この送信元からの全メールを検索（最大500件）
@@ -525,10 +541,28 @@ function updateInflowDatesFromSpecificSenders() {
     const threads = GmailApp.search(searchQuery, 0, 500);
     Logger.log('メールスレッド数: ' + threads.length);
 
-    for (const thread of threads) {
+    const startThread = (si === progress.senderIndex) ? progress.threadIndex : 0;
+
+    for (let ti = startThread; ti < threads.length && !shouldStop; ti++) {
+      const thread = threads[ti];
       const messages = thread.getMessages();
 
-      for (const message of messages) {
+      const startMessage = (si === progress.senderIndex && ti === progress.threadIndex) ? progress.messageIndex : 0;
+
+      for (let mi = startMessage; mi < messages.length && !shouldStop; mi++) {
+        // タイムアウトチェック
+        const elapsed = new Date().getTime() - START_TIME;
+        if (elapsed > MAX_RUNTIME_MS) {
+          Logger.log('⏰ タイムアウト間近。進捗を保存して停止します。');
+          progress.senderIndex = si;
+          progress.threadIndex = ti;
+          progress.messageIndex = mi;
+          props.setProperty('updateInflowProgress', JSON.stringify(progress));
+          shouldStop = true;
+          break;
+        }
+
+        const message = messages[mi];
         const body = message.getPlainBody();
         const emailDate = message.getDate();
 
@@ -542,8 +576,13 @@ function updateInflowDatesFromSpecificSenders() {
         if (customerEmails.length === 0) continue;
 
         const customerEmail = customerEmails[0];
-        const inflowDate = emailDate.toISOString().split('T')[0];
 
+        // 既に処理済みならスキップ
+        if (progress.processedEmails.includes(customerEmail)) {
+          continue;
+        }
+
+        const inflowDate = emailDate.toISOString().split('T')[0];
         totalProcessed++;
 
         // DBを更新（流入日と流入元の両方）
@@ -574,6 +613,10 @@ function updateInflowDatesFromSpecificSenders() {
               totalUpdated++;
             }
           }
+
+          // 処理済みとして記録
+          progress.processedEmails.push(customerEmail);
+
         } catch (error) {
           Logger.log('エラー: ' + error.message);
         }
@@ -581,12 +624,51 @@ function updateInflowDatesFromSpecificSenders() {
         // レート制限対策（500ms待機）
         Utilities.sleep(500);
       }
+
+      // 次のスレッドに移動する際にmessageIndexをリセット
+      if (!shouldStop) {
+        progress.messageIndex = 0;
+      }
+    }
+
+    // 次のsenderに移動する際にthread/messageIndexをリセット
+    if (!shouldStop) {
+      progress.threadIndex = 0;
+      progress.messageIndex = 0;
     }
   }
 
-  Logger.log('=== 更新完了 ===');
-  Logger.log('処理メール数: ' + totalProcessed);
-  Logger.log('更新成功: ' + totalUpdated + '件');
+  // 完了またはタイムアウト
+  if (shouldStop) {
+    Logger.log('=== 一時停止 ===');
+    Logger.log('今回の処理: ' + totalProcessed + '件');
+    Logger.log('今回の更新: ' + totalUpdated + '件');
+    Logger.log('累計処理済み: ' + progress.processedEmails.length + '件');
+    Logger.log('');
+    Logger.log('⚠️ 処理が完了していません。再度実行してください。');
+  } else {
+    // 完了 - 進捗をクリア
+    props.deleteProperty('updateInflowProgress');
+    Logger.log('=== 全件処理完了 ===');
+    Logger.log('総処理メール数: ' + totalProcessed);
+    Logger.log('総更新成功: ' + totalUpdated + '件');
+    Logger.log('累計処理済みメール: ' + progress.processedEmails.length + '件');
+  }
+
+  return {
+    completed: !shouldStop,
+    processedThisRun: totalProcessed,
+    updatedThisRun: totalUpdated,
+    totalProcessed: progress.processedEmails.length
+  };
+}
+
+/**
+ * 進捗をリセット（最初からやり直したい場合）
+ */
+function resetUpdateInflowProgress() {
+  PropertiesService.getScriptProperties().deleteProperty('updateInflowProgress');
+  Logger.log('進捗をリセットしました。updateInflowDatesFromSpecificSenders() を実行すると最初から処理します。');
 }
 
 /**
