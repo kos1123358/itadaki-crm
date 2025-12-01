@@ -916,13 +916,29 @@ export default function CallWork() {
                 </Space>
               </div>
 
-              <Divider />
+              <Divider style={{ margin: '12px 0' }} />
 
-              {/* 詳細情報 */}
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label="メール">{displayCustomer.email}</Descriptions.Item>
+              {/* 基本情報 */}
+              <Text strong style={{ color: '#666', fontSize: 12 }}>基本情報</Text>
+              <Descriptions column={1} size="small" style={{ marginBottom: 8 }}>
+                <Descriptions.Item label="メール">{displayCustomer.email || '-'}</Descriptions.Item>
                 <Descriptions.Item label="住所">{displayCustomer.address || '-'}</Descriptions.Item>
-                <Descriptions.Item label="現職">{displayCustomer.current_company}</Descriptions.Item>
+                <Descriptions.Item label="媒体">{displayCustomer.media || '-'}</Descriptions.Item>
+                <Descriptions.Item label="経路">{displayCustomer.route || '-'}</Descriptions.Item>
+                <Descriptions.Item label="流入日">
+                  {displayCustomer.inflow_date ? dayjs(displayCustomer.inflow_date).format('YYYY-MM-DD HH:mm') : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="繋がりやすい時間帯">
+                  <Text type="warning" strong>{displayCustomer.available_time || '-'}</Text>
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Divider style={{ margin: '8px 0' }} />
+
+              {/* 職務情報 */}
+              <Text strong style={{ color: '#666', fontSize: 12 }}>職務情報</Text>
+              <Descriptions column={1} size="small" style={{ marginBottom: 8 }}>
+                <Descriptions.Item label="現職">{displayCustomer.current_company || '-'}</Descriptions.Item>
                 <Descriptions.Item label="現職種">
                   {getChangePreview('current_job_type') ? (
                     <div>
@@ -933,7 +949,7 @@ export default function CallWork() {
                       </Text>
                     </div>
                   ) : (
-                    <span>{displayCustomer.current_job_type}</span>
+                    <span>{displayCustomer.current_job_type || '-'}</span>
                   )}
                 </Descriptions.Item>
                 <Descriptions.Item label="現年収">
@@ -946,9 +962,21 @@ export default function CallWork() {
                       </Text>
                     </div>
                   ) : (
-                    <span>{displayCustomer.current_salary}万円</span>
+                    <span>{displayCustomer.current_salary ? `${displayCustomer.current_salary}万円` : '-'}</span>
                   )}
                 </Descriptions.Item>
+                <Descriptions.Item label="社数経験">
+                  {displayCustomer.company_experience_count ? `${displayCustomer.company_experience_count}社` : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="転職希望時期">{displayCustomer.job_change_schedule || '-'}</Descriptions.Item>
+                <Descriptions.Item label="転職活動状況">{displayCustomer.job_change_status || '-'}</Descriptions.Item>
+              </Descriptions>
+
+              <Divider style={{ margin: '8px 0' }} />
+
+              {/* 希望条件 */}
+              <Text strong style={{ color: '#666', fontSize: 12 }}>希望条件</Text>
+              <Descriptions column={1} size="small" style={{ marginBottom: 8 }}>
                 <Descriptions.Item label="希望職種">
                   {getChangePreview('desired_job_type') ? (
                     <div>
@@ -1005,7 +1033,7 @@ export default function CallWork() {
                       </Text>
                     </div>
                   ) : (
-                    <span>{displayCustomer.desired_salary}万円</span>
+                    <span>{displayCustomer.desired_salary ? `${displayCustomer.desired_salary}万円` : '-'}</span>
                   )}
                 </Descriptions.Item>
                 <Descriptions.Item label="希望勤務地">
@@ -1018,11 +1046,33 @@ export default function CallWork() {
                       </Text>
                     </div>
                   ) : (
-                    <span>{displayCustomer.desired_work_location}</span>
+                    <span>{displayCustomer.desired_work_location || '-'}</span>
                   )}
                 </Descriptions.Item>
-                <Descriptions.Item label="繋がりやすい時間">
-                  <Text type="warning" strong>{displayCustomer.available_time}</Text>
+                <Descriptions.Item label="最終学歴">{displayCustomer.final_education || '-'}</Descriptions.Item>
+                <Descriptions.Item label="入社可能時期">{displayCustomer.employment_start_period || '-'}</Descriptions.Item>
+              </Descriptions>
+
+              <Divider style={{ margin: '8px 0' }} />
+
+              {/* その他 */}
+              <Text strong style={{ color: '#666', fontSize: 12 }}>その他</Text>
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="運転免許">
+                  {displayCustomer.drivers_license === true ? 'あり' : displayCustomer.drivers_license === false ? 'なし' : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="転職理由">
+                  {getChangePreview('transfer_reason') ? (
+                    <div>
+                      <Text delete type="secondary">{getChangePreview('transfer_reason').oldValue || '-'}</Text>
+                      <Text> → </Text>
+                      <Text strong style={{ backgroundColor: '#fff566', padding: '2px 4px' }}>
+                        {getChangePreview('transfer_reason').newValue || '-'}
+                      </Text>
+                    </div>
+                  ) : (
+                    <span>{displayCustomer.transfer_reason || '-'}</span>
+                  )}
                 </Descriptions.Item>
               </Descriptions>
             </Space>

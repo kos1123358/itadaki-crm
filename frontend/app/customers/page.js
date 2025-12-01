@@ -196,27 +196,6 @@ const CustomerDetailPanel = ({
 
       {/* コンテンツ（スクロール可能） */}
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-        {/* 基本情報 */}
-        <Card title="基本情報" size="small" style={{ marginBottom: 16 }}>
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="電話番号">
-              {customer.phone_number ? (
-                <a href={`tel:${customer.phone_number}`} style={{ color: '#1890ff' }}>
-                  {customer.phone_number}
-                </a>
-              ) : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="メール">{customer.email || '-'}</Descriptions.Item>
-            <Descriptions.Item label="年齢">{customer.age || '-'}</Descriptions.Item>
-            <Descriptions.Item label="性別">{customer.gender || '-'}</Descriptions.Item>
-            <Descriptions.Item label="住所">{customer.address || '-'}</Descriptions.Item>
-            <Descriptions.Item label="媒体">{customer.media || '-'}</Descriptions.Item>
-            <Descriptions.Item label="流入日">
-              {customer.inflow_date ? dayjs(customer.inflow_date).format('YYYY-MM-DD HH:mm') : '-'}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-
         {/* ステータス情報 */}
         <Card
           title="ステータス"
@@ -276,6 +255,33 @@ const CustomerDetailPanel = ({
           </Card>
         )}
 
+        {/* 基本情報 */}
+        <Card title="基本情報" size="small" style={{ marginBottom: 16 }}>
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="ふりがな">{customer.furigana || '-'}</Descriptions.Item>
+            <Descriptions.Item label="電話番号">
+              {customer.phone_number ? (
+                <a href={`tel:${customer.phone_number}`} style={{ color: '#1890ff' }}>
+                  {customer.phone_number}
+                </a>
+              ) : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="メール">{customer.email || '-'}</Descriptions.Item>
+            <Descriptions.Item label="年齢・性別">
+              {customer.age ? `${customer.age}歳` : '-'} / {customer.gender || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="住所">{customer.address || '-'}</Descriptions.Item>
+            <Descriptions.Item label="媒体">{customer.media || '-'}</Descriptions.Item>
+            <Descriptions.Item label="経路">{customer.route || '-'}</Descriptions.Item>
+            <Descriptions.Item label="流入日">
+              {customer.inflow_date ? dayjs(customer.inflow_date).format('YYYY-MM-DD HH:mm') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="繋がりやすい時間帯">
+              <Text type="warning" strong>{customer.available_time || '-'}</Text>
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+
         {/* 職務情報 */}
         <Card title="職務情報" size="small" style={{ marginBottom: 16 }}>
           <Descriptions bordered size="small" column={1}>
@@ -284,12 +290,35 @@ const CustomerDetailPanel = ({
             <Descriptions.Item label="現年収">
               {customer.current_salary ? `${customer.current_salary}万円` : '-'}
             </Descriptions.Item>
+            <Descriptions.Item label="社数経験">
+              {customer.company_experience_count ? `${customer.company_experience_count}社` : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="転職希望時期">{customer.job_change_schedule || '-'}</Descriptions.Item>
+            <Descriptions.Item label="転職活動状況">{customer.job_change_status || '-'}</Descriptions.Item>
+          </Descriptions>
+        </Card>
+
+        {/* 希望条件 */}
+        <Card title="希望条件" size="small" style={{ marginBottom: 16 }}>
+          <Descriptions bordered size="small" column={1}>
             <Descriptions.Item label="希望職種">{customer.desired_job_type || '-'}</Descriptions.Item>
             <Descriptions.Item label="希望業種">{customer.desired_industry || '-'}</Descriptions.Item>
             <Descriptions.Item label="希望年収">
               {customer.desired_salary ? `${customer.desired_salary}万円` : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="希望勤務地">{customer.desired_work_location || '-'}</Descriptions.Item>
+            <Descriptions.Item label="最終学歴">{customer.final_education || '-'}</Descriptions.Item>
+            <Descriptions.Item label="入社可能時期">{customer.employment_start_period || '-'}</Descriptions.Item>
+          </Descriptions>
+        </Card>
+
+        {/* その他 */}
+        <Card title="その他" size="small" style={{ marginBottom: 16 }}>
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="運転免許">
+              {customer.drivers_license === true ? 'あり' : customer.drivers_license === false ? 'なし' : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="転職理由">{customer.transfer_reason || '-'}</Descriptions.Item>
           </Descriptions>
         </Card>
 
