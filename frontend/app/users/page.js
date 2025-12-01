@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { Card, Table, Button, Form, Input, message, Modal, Tag, Space } from 'antd';
-import { MailOutlined, UserAddOutlined, DeleteOutlined } from '@ant-design/icons';
+import { MailOutlined, UserAddOutlined, DeleteOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { supabase } from '@/lib/supabase';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   useEffect(() => {
     fetchUsers();
@@ -83,6 +86,52 @@ export default function UsersPage() {
     }
   };
 
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    editForm.setFieldsValue({ username: user.username || '' });
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateUsername = async (values) => {
+    try {
+      setLoading(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('認証されていません');
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/user-management?action=update-profile`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: editingUser.id,
+            username: values.username || null,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'ユーザー名の更新に失敗しました');
+      }
+
+      message.success('ユーザー名を更新しました');
+      setEditModalVisible(false);
+      editForm.resetFields();
+      setEditingUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('更新エラー:', error);
+      message.error(error.message || 'ユーザー名の更新に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteUser = async (userId) => {
     Modal.confirm({
       title: 'ユーザーを削除しますか？',
@@ -123,6 +172,17 @@ export default function UsersPage() {
 
   const columns = [
     {
+      title: 'ユーザー名',
+      dataIndex: 'username',
+      key: 'username',
+      render: (username, record) => (
+        <Space>
+          <UserOutlined />
+          {username || <span style={{ color: '#999' }}>未設定</span>}
+        </Space>
+      ),
+    },
+    {
       title: 'メールアドレス',
       dataIndex: 'email',
       key: 'email',
@@ -157,6 +217,13 @@ export default function UsersPage() {
       key: 'action',
       render: (_, record) => (
         <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditUser(record)}
+          >
+            編集
+          </Button>
           <Button
             type="link"
             danger
@@ -236,6 +303,62 @@ export default function UsersPage() {
                 onClick={() => {
                   setInviteModalVisible(false);
                   form.resetFields();
+                }}
+              >
+                キャンセル
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* ユーザー名編集モーダル */}
+      <Modal
+        title="ユーザー名を編集"
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false);
+          editForm.resetFields();
+          setEditingUser(null);
+        }}
+        footer={null}
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleUpdateUsername}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <span style={{ color: '#666' }}>メールアドレス: </span>
+            <strong>{editingUser?.email}</strong>
+          </div>
+
+          <Form.Item
+            name="username"
+            label="ユーザー名"
+          >
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="山田太郎"
+              size="large"
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                icon={<EditOutlined />}
+              >
+                保存
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditModalVisible(false);
+                  editForm.resetFields();
+                  setEditingUser(null);
                 }}
               >
                 キャンセル

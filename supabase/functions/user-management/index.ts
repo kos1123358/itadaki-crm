@@ -48,14 +48,54 @@ serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
-    // ユーザー一覧取得
+    // ユーザー一覧取得（プロフィール情報含む）
     if (method === 'GET' && action === 'list') {
       const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
       if (error) throw error;
 
+      // プロフィール情報も取得
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username');
+
+      // ユーザー情報とプロフィールを結合
+      const usersWithProfiles = data.users.map(user => {
+        const profile = profiles?.find(p => p.id === user.id);
+        return {
+          ...user,
+          username: profile?.username || null,
+        };
+      });
+
       return new Response(
-        JSON.stringify({ users: data.users }),
+        JSON.stringify({ users: usersWithProfiles }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    // ユーザー名更新
+    if (method === 'PUT' && action === 'update-profile') {
+      const { userId, username } = await req.json();
+
+      if (!userId) {
+        throw new Error('ユーザーIDが必要です');
+      }
+
+      // プロフィールを更新（なければ作成）
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .upsert({ id: userId, username: username || null })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify({ success: true, profile: data }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
