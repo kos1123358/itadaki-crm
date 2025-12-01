@@ -541,3 +541,88 @@ export const jobAPI = {
     return { data: { success: true } };
   },
 };
+
+// ユーザー・プロフィールAPI
+export const userAPI = {
+  // 全ユーザーとプロフィールを取得（ドロップダウン用）
+  getAllWithProfiles: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // profilesテーブルからユーザー情報を取得
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, username');
+
+    if (profilesError) throw profilesError;
+
+    // auth.usersからメールアドレスを取得するためにuser-management APIを使用
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/user-management?action=list`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('ユーザー情報の取得に失敗しました');
+    }
+
+    const authData = await response.json();
+    const authUsers = authData.users || [];
+
+    // profilesとauth.usersを結合
+    const usersWithProfiles = authUsers.map(authUser => {
+      const profile = profiles.find(p => p.id === authUser.id);
+      return {
+        id: authUser.id,
+        email: authUser.email,
+        username: profile?.username || null,
+        displayName: profile?.username || authUser.email,
+      };
+    });
+
+    return { data: usersWithProfiles, currentUserId: user.id };
+  },
+
+  // 現在のユーザー情報を取得
+  getCurrentUser: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single();
+
+    return {
+      data: {
+        id: user.id,
+        email: user.email,
+        username: profile?.username || null,
+        displayName: profile?.username || user.email,
+      }
+    };
+  },
+
+  // プロフィール更新
+  updateProfile: async (username) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, username })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data };
+  },
+};

@@ -2,6 +2,18 @@
 
 Next.js + Supabaseで構築された人材紹介事業向けの顧客関係管理（CRM）システムです。
 
+## 🚨 重要: 開発フローについて
+
+**このプロジェクトはデプロイベースの開発フローを採用しています。**
+
+ローカル環境ではVercel、Supabase、Google Apps Script (GAS) の実環境での連携を検証できないため、**必ずデプロイして本番環境で動作確認を行ってください**。
+
+詳細は **[DEPLOYMENT.md](./DEPLOYMENT.md)** を参照してください。
+
+### 本番環境URL
+- **フロントエンド（固定）**: https://frontend-self-one-79.vercel.app
+- **管理画面**: https://vercel.com/kos1123358s-projects/frontend
+
 ## 主な機能
 
 ### 顧客管理
@@ -146,6 +158,8 @@ itadaki-crm/
 │   ├── config.toml            # Supabase設定
 │   └── migrations/            # データベースマイグレーション
 ├── supabase-schema.sql        # データベーススキーマ
+├── DEPLOYMENT.md              # 🚀 デプロイメント・開発フローガイド
+├── SUPABASE_SETUP.md          # Supabaseセットアップガイド
 ├── WEBHOOK_SETUP.md           # Webhook APIセットアップガイド
 └── README.md
 ```
@@ -203,7 +217,9 @@ WEBHOOK_DEFAULT_USER_ID=your-user-id
 
 ## 開発
 
-### ローカル開発環境の起動
+**⚠️ 重要**: このプロジェクトはデプロイベース開発フローを採用しています。インテグレーション検証は本番環境で行ってください。詳細は [DEPLOYMENT.md](./DEPLOYMENT.md) を参照。
+
+### ローカル開発環境の起動（基本的な開発・デバッグ用）
 
 ```bash
 # ターミナル1: Supabaseを起動
@@ -212,6 +228,8 @@ supabase start
 # ターミナル2: フロントエンドを起動
 cd frontend && npm run dev
 ```
+
+**注意**: ローカル環境は基本的なUIや機能の開発・デバッグにのみ使用してください。外部サービス（GAS、Webhook API）との統合テストは必ず本番環境で実施してください。
 
 ### Edge Functionsのテスト
 
@@ -229,18 +247,31 @@ curl -X POST http://localhost:54321/functions/v1/webhook-customer \
 
 ## デプロイ
 
-### Vercelへのデプロイ
+**⚠️ 重要**: デプロイ手順、本番環境の設定、GAS連携については **[DEPLOYMENT.md](./DEPLOYMENT.md)** を必ず参照してください。
+
+### クイックデプロイ
 
 ```bash
+# Vercelへのデプロイ
 cd frontend
-npx vercel
-```
+vercel deploy --token=your-vercel-token --prod
 
-### Supabase Edge Functionsのデプロイ
-
-```bash
+# Supabase Edge Functionsのデプロイ
 supabase functions deploy webhook-customer
 ```
+
+### 現在のデプロイ状況
+
+- **フロントエンド (Vercel)**: ✅ デプロイ済み
+  - URL: https://frontend-riq6195va-kos1123358s-projects.vercel.app
+  - 環境変数設定が必要
+- **バックエンド (Supabase)**: ⚠️ 本番環境の設定が必要
+  - データベーススキーマ適用
+  - Edge Functionデプロイ
+  - Webhook API設定
+- **GAS連携**: ⚠️ 設定待ち
+
+詳細な手順は [DEPLOYMENT.md](./DEPLOYMENT.md) を参照してください。
 
 ## 今後の拡張可能性
 

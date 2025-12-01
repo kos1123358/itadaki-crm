@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag, Divider, Statistic, Row, Col, message, Badge, Typography, Timeline, Collapse, List, Modal } from 'antd';
 import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined } from '@ant-design/icons';
-import { customerAPI, callHistoryAPI, statusAPI, jobAPI } from '@/lib/api';
+import { customerAPI, callHistoryAPI, statusAPI, jobAPI, userAPI } from '@/lib/api';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -250,6 +250,8 @@ export default function CallWork() {
     connected: 0,
     notConnected: 0
   });
+  const [users, setUsers] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // JSON文字列または配列を配列に変換するヘルパー関数
   const parseArrayField = (value) => {
@@ -276,6 +278,25 @@ export default function CallWork() {
       fetchJobs();
     }
   }, [currentCustomer]);
+
+  // ユーザー一覧を取得
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data, currentUserId: userId } = await userAPI.getAllWithProfiles();
+      setUsers(data || []);
+      setCurrentUserId(userId);
+      // デフォルトで自分を選択
+      if (userId) {
+        callForm.setFieldsValue({ caller_id: userId });
+      }
+    } catch (error) {
+      console.error('ユーザー取得エラー:', error);
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -449,6 +470,10 @@ export default function CallWork() {
       const values = await callForm.validateFields();
 
       // 架電履歴を作成
+      // 架電担当者の表示名を取得
+      const caller = users.find(u => u.id === values.caller_id);
+      const callerName = caller?.displayName || '';
+
       await callHistoryAPI.create({
         customer_id: currentCustomer.id,
         call_date: new Date().toISOString(),
@@ -456,7 +481,8 @@ export default function CallWork() {
         call_result: values.call_result,
         duration: isCallActive ? callDuration : null,
         notes: values.notes || '',
-        staff_name: values.staff_name || '',
+        staff_name: callerName,
+        caller_id: values.caller_id || null,
         next_action: values.next_action || '',
         next_contact_date: values.next_contact_date ? values.next_contact_date.toISOString() : null,
       });
@@ -473,6 +499,10 @@ export default function CallWork() {
 
       // フォームをリセット
       callForm.resetFields();
+      // 架電担当者をデフォルト（自分）に戻す
+      if (currentUserId) {
+        callForm.setFieldsValue({ caller_id: currentUserId });
+      }
       hearingForm.resetFields();
       setSelectedResult(null);
       setSelectedStatus(null);
@@ -520,6 +550,10 @@ export default function CallWork() {
     setCurrentIndex(nextIndex);
     setCurrentCustomer(customers[nextIndex]);
     callForm.resetFields();
+    // 架電担当者をデフォルト（自分）に戻す
+    if (currentUserId) {
+      callForm.setFieldsValue({ caller_id: currentUserId });
+    }
     setSelectedResult(null);
     setSelectedStatus(null);
     setIsPreviewMode(false);
@@ -1149,19 +1183,46 @@ export default function CallWork() {
                 label: '架電記録',
                 children: (
                   <Form form={callForm} layout="vertical" disabled={isPreviewMode} onValuesChange={updateLivePreview}>
-              <Form.Item
-                name="call_type"
-                label="架電種別"
-                rules={[{ required: true, message: '架電種別を選択してください' }]}
-                initialValue="発信"
-              >
-                <Select size="large">
-                  <Option value="発信">発信</Option>
-                  <Option value="着信">着信</Option>
-                  <Option value="メール">メール</Option>
-                  <Option value="その他">その他</Option>
-                </Select>
-              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="call_type"
+                    label="架電種別"
+                    rules={[{ required: true, message: '架電種別を選択してください' }]}
+                    initialValue="発信"
+                  >
+                    <Select size="large">
+                      <Option value="発信">発信</Option>
+                      <Option value="着信">着信</Option>
+                      <Option value="メール">メール</Option>
+                      <Option value="その他">その他</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="caller_id"
+                    label="架電担当者"
+                    rules={[{ required: true, message: '架電担当者を選択してください' }]}
+                  >
+                    <Select
+                      size="large"
+                      placeholder="担当者を選択"
+                      showSearch
+                      optionFilterProp="children"
+                      filterOption={(input, option) =>
+                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {users.map(user => (
+                        <Option key={user.id} value={user.id}>
+                          {user.displayName}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
 
               <Form.Item
                 name="call_result"
