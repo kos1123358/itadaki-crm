@@ -557,7 +557,7 @@ function updateInflowDatesFromSpecificSenders() {
     { email: 'snapjob_ad@roxx.co.jp', media: '送客NEXT', domain: 'roxx.co.jp' },
     { email: 'snapjob@roxx.co.jp', media: '送客NEXT', domain: 'roxx.co.jp' },
     { email: 'contact@jobseeker-navi.com', media: '送客ナビ', domain: 'jobseeker-navi.com' },
-    { email: 'career@itadaki-career.com', media: null, domain: 'itadaki-career.com', isForwarder: true }  // 転送元
+    { email: 'career@itadaki-career.com', media: '送客NEXT', domain: 'itadaki-career.com', isForwarder: true }  // 転送元（デフォルト: 送客NEXT）
   ];
 
   let totalProcessed = 0;
@@ -601,17 +601,12 @@ function updateInflowDatesFromSpecificSenders() {
         // 転送メールの場合、本文から実際の送信元を判定してmediaを決定
         let actualMedia = config.media;
         if (config.isForwarder) {
-          // 本文内に元の送信元があるかチェック
-          if (body.includes('roxx.co.jp') || body.includes('snapjob')) {
-            actualMedia = '送客NEXT';
-            Logger.log('転送メール: 送客NEXT を検出');
-          } else if (body.includes('jobseeker-navi.com')) {
+          // 送客ナビの場合のみ上書き（デフォルトは送客NEXT）
+          if (body.includes('jobseeker-navi.com')) {
             actualMedia = '送客ナビ';
             Logger.log('転送メール: 送客ナビ を検出');
           } else {
-            // 対象の送信元が見つからない場合はスキップ
-            Logger.log('転送メール: 対象送信元が見つからないためスキップ');
-            continue;
+            Logger.log('転送メール: 送客NEXT として処理');
           }
         }
 
