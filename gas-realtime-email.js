@@ -237,6 +237,7 @@ function processGmailMessage(message) {
  * 候補者メールかどうか判定
  * 特定の送信元からのメールのみ処理
  * 転送メールの場合は本文内の元送信者もチェック
+ * 件名に特定のキーワードが含まれる場合も対象
  */
 function isCandidateEmail(subject, body, from) {
   // 対象の送信元アドレス/ドメイン
@@ -245,8 +246,26 @@ function isCandidateEmail(subject, body, from) {
     'snapjob@roxx.co.jp',
     'roxx.co.jp',  // ドメイン全体も対象
     'contact@jobseeker-navi.com',
-    'jobseeker-navi.com'  // ドメイン全体も対象
+    'jobseeker-navi.com',  // ドメイン全体も対象
+    'itadaki-career.com'  // 転送元
   ];
+
+  // 件名に対象キーワードが含まれるかチェック
+  const targetSubjectKeywords = [
+    '送客NEXT',
+    '送客ナビ',
+    'Zキャリア',
+    '求職者応募通知'
+  ];
+
+  if (subject) {
+    for (const keyword of targetSubjectKeywords) {
+      if (subject.includes(keyword)) {
+        Logger.log('件名キーワード検出: ' + keyword);
+        return true;
+      }
+    }
+  }
 
   // 送信元が対象リストに含まれているかチェック
   if (from) {
@@ -434,11 +453,12 @@ function processUnprocessedEmails(maxCount = 20) {
     for (const message of messages) {
       const subject = message.getSubject();
       const body = message.getPlainBody();
+      const from = message.getFrom();
 
       Logger.log('処理中: ' + subject);
 
       // 候補者メールかどうか判定
-      if (isCandidateEmail(subject, body)) {
+      if (isCandidateEmail(subject, body, from)) {
         processGmailMessage(message);
         processedCount++;
       } else {
