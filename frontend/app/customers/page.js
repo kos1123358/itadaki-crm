@@ -67,6 +67,16 @@ export default function CustomerList() {
     return Array.from(mediaSet).sort();
   }, [customers]);
 
+  // 緊急対応が必要な顧客かどうか判定（流入24時間以内 かつ 架電記録なし）
+  const isUrgentCustomer = useCallback((customer) => {
+    if (!customer.inflow_date) return false;
+    const inflowTime = dayjs(customer.inflow_date);
+    const now = dayjs();
+    const hoursElapsed = now.diff(inflowTime, 'hour');
+    const hasNoCallHistory = !customer.callHistories || customer.callHistories.length === 0;
+    return hoursElapsed <= 24 && hasNoCallHistory;
+  }, []);
+
   // フィルタリングされた顧客リスト
   const filteredCustomers = useMemo(() => {
     return customers.filter(customer => {
@@ -246,6 +256,12 @@ export default function CustomerList() {
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => (a.name || '').localeCompare(b.name || '', 'ja'),
+      render: (name, record) => (
+        <Space>
+          {name}
+          {isUrgentCustomer(record) && <Tag color="red">要対応</Tag>}
+        </Space>
+      ),
     },
     {
       title: 'メール',
@@ -341,25 +357,32 @@ export default function CustomerList() {
   ];
 
   // モバイル用カードコンポーネント
-  const CustomerCard = ({ customer }) => (
-    <Card
-      style={{ marginBottom: 16 }}
-      styles={{ body: { padding: 16 } }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-            <UserOutlined style={{ marginRight: 8 }} />
-            {customer.name}
-          </h3>
-          {customer.statusInfo?.current_status && (
-            <Tag color="blue" style={{ marginTop: 8 }}>
-              {customer.statusInfo.current_status}
-            </Tag>
-          )}
+  const CustomerCard = ({ customer }) => {
+    const urgent = isUrgentCustomer(customer);
+    return (
+      <Card
+        style={{
+          marginBottom: 16,
+          border: urgent ? '2px solid #ff4d4f' : undefined,
+          boxShadow: urgent ? '0 0 8px rgba(255, 77, 79, 0.3)' : undefined,
+        }}
+        styles={{ body: { padding: 16 } }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+              <UserOutlined style={{ marginRight: 8 }} />
+              {customer.name}
+              {urgent && <Tag color="red" style={{ marginLeft: 8 }}>要対応</Tag>}
+            </h3>
+            {customer.statusInfo?.current_status && (
+              <Tag color="blue" style={{ marginTop: 8 }}>
+                {customer.statusInfo.current_status}
+              </Tag>
+            )}
+          </div>
+          <span style={{ color: '#999', fontSize: 12 }}>ID: {customer.id}</span>
         </div>
-        <span style={{ color: '#999', fontSize: 12 }}>ID: {customer.id}</span>
-      </div>
 
       <div style={{ marginBottom: 12 }}>
         {customer.phone_number && (
@@ -423,7 +446,8 @@ export default function CustomerList() {
         </Button>
       </Space>
     </Card>
-  );
+    );
+  };
 
   return (
     <div style={{ padding: isMobile ? '12px 8px' : '0' }}>
@@ -579,6 +603,12 @@ export default function CustomerList() {
           }}
           scroll={{ x: 1300 }}
           locale={{ emptyText: hasActiveFilters ? '条件に一致する顧客がありません' : '顧客データがありません' }}
+          onRow={(record) => ({
+            style: isUrgentCustomer(record) ? {
+              backgroundColor: '#fff2f0',
+              boxShadow: 'inset 0 0 0 2px #ff4d4f',
+            } : {},
+          })}
         />
       )}
 
