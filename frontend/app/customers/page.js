@@ -321,7 +321,12 @@ export default function CustomerList() {
           dataSource={customers}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10 }}
+          pagination={{
+            defaultPageSize: 30,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '30', '50', '100'],
+            showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
+          }}
           scroll={{ x: 1200 }}
         />
       )}
