@@ -251,6 +251,20 @@ export default function CallWork() {
     notConnected: 0
   });
 
+  // JSON文字列または配列を配列に変換するヘルパー関数
+  const parseArrayField = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  };
+
   // 顧客データ取得
   useEffect(() => {
     fetchCustomers();
@@ -647,12 +661,8 @@ export default function CallWork() {
   useEffect(() => {
     if (!currentCustomer) return;
 
-    const jobTypes = Array.isArray(currentCustomer.desired_job_type)
-      ? currentCustomer.desired_job_type
-      : [];
-    const industries = Array.isArray(currentCustomer.desired_industry)
-      ? currentCustomer.desired_industry
-      : [];
+    const jobTypes = parseArrayField(currentCustomer.desired_job_type);
+    const industries = parseArrayField(currentCustomer.desired_industry);
 
     setSelectedJobTypes(jobTypes);
     setSelectedIndustries(industries);
@@ -878,21 +888,21 @@ export default function CallWork() {
                   {getChangePreview('desired_job_type') ? (
                     <div>
                       <Text delete type="secondary">
-                        {Array.isArray(getChangePreview('desired_job_type').oldValue) && getChangePreview('desired_job_type').oldValue.length > 0
-                          ? getChangePreview('desired_job_type').oldValue.join(', ')
+                        {parseArrayField(getChangePreview('desired_job_type').oldValue).length > 0
+                          ? parseArrayField(getChangePreview('desired_job_type').oldValue).join(', ')
                           : '-'}
                       </Text>
                       <Text> → </Text>
                       <Text strong style={{ backgroundColor: '#fff566', padding: '2px 4px' }}>
-                        {Array.isArray(getChangePreview('desired_job_type').newValue) && getChangePreview('desired_job_type').newValue.length > 0
-                          ? getChangePreview('desired_job_type').newValue.join(', ')
+                        {parseArrayField(getChangePreview('desired_job_type').newValue).length > 0
+                          ? parseArrayField(getChangePreview('desired_job_type').newValue).join(', ')
                           : '-'}
                       </Text>
                     </div>
                   ) : (
                     <span>
-                      {Array.isArray(displayCustomer.desired_job_type) && displayCustomer.desired_job_type.length > 0
-                        ? displayCustomer.desired_job_type.join(', ')
+                      {parseArrayField(displayCustomer.desired_job_type).length > 0
+                        ? parseArrayField(displayCustomer.desired_job_type).join(', ')
                         : '-'}
                     </span>
                   )}
@@ -901,21 +911,21 @@ export default function CallWork() {
                   {getChangePreview('desired_industry') ? (
                     <div>
                       <Text delete type="secondary">
-                        {Array.isArray(getChangePreview('desired_industry').oldValue) && getChangePreview('desired_industry').oldValue.length > 0
-                          ? getChangePreview('desired_industry').oldValue.join(', ')
+                        {parseArrayField(getChangePreview('desired_industry').oldValue).length > 0
+                          ? parseArrayField(getChangePreview('desired_industry').oldValue).join(', ')
                           : '-'}
                       </Text>
                       <Text> → </Text>
                       <Text strong style={{ backgroundColor: '#fff566', padding: '2px 4px' }}>
-                        {Array.isArray(getChangePreview('desired_industry').newValue) && getChangePreview('desired_industry').newValue.length > 0
-                          ? getChangePreview('desired_industry').newValue.join(', ')
+                        {parseArrayField(getChangePreview('desired_industry').newValue).length > 0
+                          ? parseArrayField(getChangePreview('desired_industry').newValue).join(', ')
                           : '-'}
                       </Text>
                     </div>
                   ) : (
                     <span>
-                      {Array.isArray(displayCustomer.desired_industry) && displayCustomer.desired_industry.length > 0
-                        ? displayCustomer.desired_industry.join(', ')
+                      {parseArrayField(displayCustomer.desired_industry).length > 0
+                        ? parseArrayField(displayCustomer.desired_industry).join(', ')
                         : '-'}
                     </span>
                   )}
@@ -1584,7 +1594,7 @@ export default function CallWork() {
                   <Text type="secondary">現職種:</Text>{' '}
                   <Text>{displayCustomer.current_job_type}</Text>
                   {' → '}
-                  <Text strong>希望職種: {displayCustomer.desired_job_type?.join(', ') || '-'}</Text>
+                  <Text strong>希望職種: {parseArrayField(displayCustomer.desired_job_type).join(', ') || '-'}</Text>
                 </div>
                 <div>
                   <Text type="secondary">現年収:</Text>{' '}
