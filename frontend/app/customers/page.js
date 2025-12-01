@@ -1067,6 +1067,29 @@ export default function CustomerList() {
       ) : (
         // デスクトップ表示（スプリットビュー）
         <Row gutter={16} style={{ height: 'calc(100% - 180px)' }}>
+          {selectedCustomer && (
+            <Col span={10} style={{ height: '100%' }}>
+              <Card
+                style={{ height: '100%', overflow: 'hidden' }}
+                styles={{ body: { padding: 0, height: 'calc(100% - 1px)', overflow: 'hidden' } }}
+              >
+                <CustomerDetailPanel
+                  customer={selectedCustomer}
+                  onClose={() => setSelectedCustomer(null)}
+                  onEdit={showModal}
+                  onRefresh={async () => {
+                    await fetchCustomers();
+                    if (selectedCustomer) {
+                      const response = await customerAPI.getById(selectedCustomer.id);
+                      setSelectedCustomer(response.data);
+                    }
+                  }}
+                  isMobile={false}
+                />
+              </Card>
+            </Col>
+          )}
+
           <Col span={selectedCustomer ? 14 : 24} style={{ height: '100%', transition: 'all 0.3s' }}>
             <style jsx global>{`
               .urgent-customer-row > td,
@@ -1109,29 +1132,6 @@ export default function CustomerList() {
               size="small"
             />
           </Col>
-
-          {selectedCustomer && (
-            <Col span={10} style={{ height: '100%' }}>
-              <Card
-                style={{ height: '100%', overflow: 'hidden' }}
-                styles={{ body: { padding: 0, height: 'calc(100% - 1px)', overflow: 'hidden' } }}
-              >
-                <CustomerDetailPanel
-                  customer={selectedCustomer}
-                  onClose={() => setSelectedCustomer(null)}
-                  onEdit={showModal}
-                  onRefresh={async () => {
-                    await fetchCustomers();
-                    if (selectedCustomer) {
-                      const response = await customerAPI.getById(selectedCustomer.id);
-                      setSelectedCustomer(response.data);
-                    }
-                  }}
-                  isMobile={false}
-                />
-              </Card>
-            </Col>
-          )}
         </Row>
       )}
 
