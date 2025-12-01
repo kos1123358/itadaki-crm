@@ -237,9 +237,9 @@ export default function CustomerDetail() {
             style={{ marginBottom: 16, margin: isMobile ? '0 -8px 16px' : '0 0 16px 0' }}
           >
             <Descriptions bordered column={{ xs: 1, sm: 1, md: 2, lg: 2 }}>
-              <Descriptions.Item label="次回連絡予定日">
+              <Descriptions.Item label="予定日時">
                 {latestCallWithNextAction.next_contact_date
-                  ? dayjs(latestCallWithNextAction.next_contact_date).format('YYYY-MM-DD')
+                  ? dayjs(latestCallWithNextAction.next_contact_date).format('YYYY-MM-DD HH:mm')
                   : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="次回アクション">
@@ -352,8 +352,8 @@ export default function CustomerDetail() {
                       <div style={{ paddingLeft: 8 }}>
                         {history.next_contact_date && (
                           <div>
-                            <Text type="secondary">次回連絡予定日: </Text>
-                            <Tag color="blue">{dayjs(history.next_contact_date).format('YYYY-MM-DD')}</Tag>
+                            <Text type="secondary">予定日時: </Text>
+                            <Tag color="blue">{dayjs(history.next_contact_date).format('YYYY-MM-DD HH:mm')}</Tag>
                           </div>
                         )}
                         {history.next_action && (
@@ -427,8 +427,8 @@ export default function CustomerDetail() {
           <Form.Item name="next_action" label="次回アクション">
             <Input />
           </Form.Item>
-          <Form.Item name="next_contact_date" label="次回連絡予定日">
-            <DatePicker style={{ width: '100%' }} />
+          <Form.Item name="next_contact_date" label="予定日時">
+            <DatePicker showTime style={{ width: '100%' }} />
           </Form.Item>
         </Form>
         </Modal>
