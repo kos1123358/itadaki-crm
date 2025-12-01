@@ -590,26 +590,35 @@ export default function CustomerList() {
           )}
         </div>
       ) : (
-        <Table
-          columns={columns}
-          dataSource={filteredCustomers}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            defaultPageSize: 30,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '30', '50', '100'],
-            showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
-          }}
-          scroll={{ x: 1300 }}
-          locale={{ emptyText: hasActiveFilters ? '条件に一致する顧客がありません' : '顧客データがありません' }}
-          onRow={(record) => ({
-            style: isUrgentCustomer(record) ? {
-              backgroundColor: '#fff2f0',
-              boxShadow: 'inset 0 0 0 2px #ff4d4f',
-            } : {},
-          })}
-        />
+        <>
+          <style jsx global>{`
+            .urgent-customer-row > td,
+            .urgent-customer-row > td.ant-table-column-sort,
+            .ant-table-tbody > tr.urgent-customer-row > td,
+            .ant-table-tbody > tr.urgent-customer-row > td.ant-table-column-sort {
+              background-color: #fff2f0 !important;
+            }
+            .urgent-customer-row {
+              outline: 2px solid #ff4d4f;
+              outline-offset: -2px;
+            }
+          `}</style>
+          <Table
+            columns={columns}
+            dataSource={filteredCustomers}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              defaultPageSize: 30,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '30', '50', '100'],
+              showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
+            }}
+            scroll={{ x: 1300 }}
+            locale={{ emptyText: hasActiveFilters ? '条件に一致する顧客がありません' : '顧客データがありません' }}
+            rowClassName={(record) => isUrgentCustomer(record) ? 'urgent-customer-row' : ''}
+          />
+        </>
       )}
 
       {isModalVisible && (
