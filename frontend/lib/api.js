@@ -6,70 +6,53 @@ export const customerAPI = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // JOINで一括取得（N+1問題を解消）
     const { data: customers, error } = await supabase
       .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false});
+      .select(`
+        *,
+        statusInfo:statuses(*),
+        callHistories:call_histories(*)
+      `)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    // 各顧客のステータス情報と架電履歴を取得
-    const customersWithStatus = await Promise.all(
-      customers.map(async (customer) => {
-        const { data: statusInfo } = await supabase
-          .from('statuses')
-          .select('*')
-          .eq('customer_id', customer.id)
-          .maybeSingle();
+    // callHistoriesを日付降順でソート
+    const customersWithSortedHistories = customers.map(customer => ({
+      ...customer,
+      callHistories: (customer.callHistories || []).sort(
+        (a, b) => new Date(b.call_date) - new Date(a.call_date)
+      )
+    }));
 
-        const { data: callHistories } = await supabase
-          .from('call_histories')
-          .select('*')
-          .eq('customer_id', customer.id)
-          .order('call_date', { ascending: false });
-
-        return {
-          ...customer,
-          statusInfo,
-          callHistories: callHistories || []
-        };
-      })
-    );
-
-    return { data: customersWithStatus };
+    return { data: customersWithSortedHistories };
   },
 
   getById: async (id) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // JOINで一括取得
     const { data: customer, error } = await supabase
       .from('customers')
-      .select('*')
+      .select(`
+        *,
+        statusInfo:statuses(*),
+        callHistories:call_histories(*)
+      `)
       .eq('id', id)
       .single();
 
     if (error) throw error;
 
-    // ステータス情報を取得
-    const { data: statusInfo } = await supabase
-      .from('statuses')
-      .select('*')
-      .eq('customer_id', id)
-      .single();
-
-    // 架電履歴を取得
-    const { data: callHistories } = await supabase
-      .from('call_histories')
-      .select('*')
-      .eq('customer_id', id)
-      .order('call_date', { ascending: false });
-
+    // callHistoriesを日付降順でソート
     return {
       data: {
         ...customer,
-        statusInfo,
-        callHistories: callHistories || []
+        callHistories: (customer.callHistories || []).sort(
+          (a, b) => new Date(b.call_date) - new Date(a.call_date)
+        )
       }
     };
   },
