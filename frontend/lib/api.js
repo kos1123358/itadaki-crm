@@ -85,6 +85,17 @@ export const customerAPI = {
       .single();
 
     if (error) throw error;
+
+    // 自動的に「未接触」ステータスを作成
+    await supabase
+      .from('statuses')
+      .insert([{
+        customer_id: data.id,
+        current_status: '未接触',
+        priority: '中',
+        status_updated_date: new Date().toISOString()
+      }]);
+
     return { data };
   },
 
