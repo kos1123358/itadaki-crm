@@ -740,12 +740,46 @@ export default function CustomerList() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="current_salary" label="現年収">
-            <Space.Compact style={{ width: '100%' }}>
-              <InputNumber min={0} style={{ width: '100%' }} size={isMobile ? 'large' : 'middle'} />
-              <Input style={{ width: 'auto', pointerEvents: 'none' }} value="万円" readOnly />
-            </Space.Compact>
-          </Form.Item>
+          <Row gutter={isMobile ? 0 : 16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="current_salary" label="現年収">
+                <Space.Compact style={{ width: '100%' }}>
+                  <InputNumber min={0} style={{ width: '100%' }} size={isMobile ? 'large' : 'middle'} />
+                  <Input style={{ width: 'auto', pointerEvents: 'none' }} value="万円" readOnly />
+                </Space.Compact>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="company_experience_count" label="社数経験">
+                <InputNumber min={0} max={50} style={{ width: '100%' }} size={isMobile ? 'large' : 'middle'} placeholder="社" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={isMobile ? 0 : 16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="job_change_schedule" label="転職希望時期">
+                <Select size={isMobile ? 'large' : 'middle'} allowClear placeholder="選択してください">
+                  <Option value="すぐにでも">すぐにでも</Option>
+                  <Option value="1ヶ月以内">1ヶ月以内</Option>
+                  <Option value="3ヶ月以内">3ヶ月以内</Option>
+                  <Option value="6ヶ月以内">6ヶ月以内</Option>
+                  <Option value="1年以内">1年以内</Option>
+                  <Option value="未定">未定</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="job_change_status" label="転職活動状況">
+                <Select size={isMobile ? 'large' : 'middle'} allowClear placeholder="選択してください">
+                  <Option value="情報収集中">情報収集中</Option>
+                  <Option value="積極的に活動中">積極的に活動中</Option>
+                  <Option value="良い案件があれば">良い案件があれば</Option>
+                  <Option value="内定保有">内定保有</Option>
+                  <Option value="活動休止中">活動休止中</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Divider titlePlacement="left" style={{ fontSize: 16, fontWeight: 600 }}>希望条件</Divider>
           <Row gutter={isMobile ? 0 : 16}>
@@ -775,8 +809,51 @@ export default function CustomerList() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="available_time" label="繋がりやすい時間帯">
-            <Input size={isMobile ? 'large' : 'middle'} />
+          <Row gutter={isMobile ? 0 : 16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="final_education" label="最終学歴">
+                <Select size={isMobile ? 'large' : 'middle'} allowClear placeholder="選択してください">
+                  <Option value="中学卒">中学卒</Option>
+                  <Option value="高校卒">高校卒</Option>
+                  <Option value="専門学校卒">専門学校卒</Option>
+                  <Option value="短大卒">短大卒</Option>
+                  <Option value="大学卒">大学卒</Option>
+                  <Option value="大学院卒">大学院卒</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="employment_start_period" label="入社可能時期">
+                <Select size={isMobile ? 'large' : 'middle'} allowClear placeholder="選択してください">
+                  <Option value="即日">即日</Option>
+                  <Option value="2週間以内">2週間以内</Option>
+                  <Option value="1ヶ月以内">1ヶ月以内</Option>
+                  <Option value="2ヶ月以内">2ヶ月以内</Option>
+                  <Option value="3ヶ月以内">3ヶ月以内</Option>
+                  <Option value="応相談">応相談</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider titlePlacement="left" style={{ fontSize: 16, fontWeight: 600 }}>その他</Divider>
+          <Row gutter={isMobile ? 0 : 16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="drivers_license" label="運転免許">
+                <Select size={isMobile ? 'large' : 'middle'} allowClear placeholder="選択してください">
+                  <Option value={true}>あり</Option>
+                  <Option value={false}>なし</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="available_time" label="繋がりやすい時間帯">
+                <Input size={isMobile ? 'large' : 'middle'} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="transfer_reason" label="転職理由">
+            <Input.TextArea rows={3} size={isMobile ? 'large' : 'middle'} placeholder="転職理由を入力してください" />
           </Form.Item>
         </Form>
         </Modal>
