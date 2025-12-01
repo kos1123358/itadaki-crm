@@ -174,7 +174,14 @@ export const callHistoryAPI = {
       .order('call_date', { ascending: false });
 
     if (error) throw error;
-    return { data };
+
+    // customersをcustomerに変換（単数形で返す）
+    const dataWithCustomer = data.map(item => ({
+      ...item,
+      customer: item.customers,
+    }));
+
+    return { data: dataWithCustomer };
   },
 
   getByCustomer: async (customerId) => {
