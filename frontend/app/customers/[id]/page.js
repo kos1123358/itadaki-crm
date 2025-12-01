@@ -18,7 +18,7 @@ import {
   Typography,
   Space,
 } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined, EditOutlined, HistoryOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlusOutlined, EditOutlined, HistoryOutlined, PhoneFilled } from '@ant-design/icons';
 import { customerAPI, callHistoryAPI, statusAPI, statusHistoryAPI } from '@/lib/api';
 import dayjs from 'dayjs';
 
@@ -121,13 +121,22 @@ export default function CustomerDetail() {
 
   return (
     <div style={{ padding: isMobile ? '12px 8px' : '0' }}>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => router.push('/customers')}
-        style={{ marginBottom: 16 }}
-      >
-        戻る
-      </Button>
+      <Space style={{ marginBottom: 16 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => router.push('/customers')}
+        >
+          戻る
+        </Button>
+        <Button
+          type="primary"
+          icon={<PhoneFilled />}
+          onClick={() => router.push(`/call-work?customerId=${id}`)}
+          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+        >
+          この顧客から架電開始
+        </Button>
+      </Space>
 
       <Card
         title={`顧客詳細: ${customer.name}`}

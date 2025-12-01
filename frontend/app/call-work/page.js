@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag, Divider, Statistic, Row, Col, message, Badge, Typography, Timeline, Collapse, List, Modal } from 'antd';
 import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined } from '@ant-design/icons';
 import { customerAPI, callHistoryAPI, statusAPI, jobAPI } from '@/lib/api';
@@ -218,6 +219,8 @@ const mockCustomers = [
 ];
 
 export default function CallWork() {
+  const searchParams = useSearchParams();
+  const initialCustomerId = searchParams.get('customerId');
   const [customers, setCustomers] = useState([]);
   const [currentCustomer, setCurrentCustomer] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -264,15 +267,32 @@ export default function CallWork() {
     try {
       setLoading(true);
       const response = await customerAPI.getAll();
-      setCustomers(response.data || []);
-      if (response.data && response.data.length > 0) {
-        setCurrentCustomer(response.data[0]);
-        // ヒアリングフォームに初期値を設定
-        if (response.data[0].desired_job_type) {
-          setSelectedJobTypes(Array.isArray(response.data[0].desired_job_type) ? response.data[0].desired_job_type : []);
+      const customerList = response.data || [];
+      setCustomers(customerList);
+
+      if (customerList.length > 0) {
+        let startIndex = 0;
+        let startCustomer = customerList[0];
+
+        // URLパラメータで指定された顧客から開始
+        if (initialCustomerId) {
+          const targetIndex = customerList.findIndex(c => c.id === parseInt(initialCustomerId));
+          if (targetIndex !== -1) {
+            startIndex = targetIndex;
+            startCustomer = customerList[targetIndex];
+            message.success(`${startCustomer.name}さんから架電を開始します`);
+          }
         }
-        if (response.data[0].desired_industry) {
-          setSelectedIndustries(Array.isArray(response.data[0].desired_industry) ? response.data[0].desired_industry : []);
+
+        setCurrentIndex(startIndex);
+        setCurrentCustomer(startCustomer);
+
+        // ヒアリングフォームに初期値を設定
+        if (startCustomer.desired_job_type) {
+          setSelectedJobTypes(Array.isArray(startCustomer.desired_job_type) ? startCustomer.desired_job_type : []);
+        }
+        if (startCustomer.desired_industry) {
+          setSelectedIndustries(Array.isArray(startCustomer.desired_industry) ? startCustomer.desired_industry : []);
         }
       }
     } catch (error) {

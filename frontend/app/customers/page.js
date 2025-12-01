@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { customerAPI } from '@/lib/api';
 import dayjs from 'dayjs';
@@ -151,9 +151,17 @@ export default function CustomerList() {
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 220,
       render: (_, record) => (
         <Space size="small">
+          <Button
+            type="link"
+            icon={<PhoneFilled />}
+            onClick={() => router.push(`/call-work?customerId=${record.id}`)}
+            style={{ color: '#52c41a' }}
+          >
+            架電
+          </Button>
           <Button
             type="link"
             icon={<EyeOutlined />}
@@ -226,13 +234,22 @@ export default function CustomerList() {
 
       <Divider style={{ margin: '12px 0' }} />
 
-      <Space size="middle" style={{ width: '100%', justifyContent: 'space-around' }}>
+      <Space size="small" style={{ width: '100%', justifyContent: 'space-around', flexWrap: 'wrap' }}>
+        <Button
+          type="primary"
+          icon={<PhoneFilled />}
+          onClick={() => router.push(`/call-work?customerId=${customer.id}`)}
+          size="large"
+          style={{ minWidth: 80, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+        >
+          架電
+        </Button>
         <Button
           type="primary"
           icon={<EyeOutlined />}
           onClick={() => router.push(`/customers/${customer.id}`)}
           size="large"
-          style={{ minWidth: 90 }}
+          style={{ minWidth: 80 }}
         >
           詳細
         </Button>
@@ -240,7 +257,7 @@ export default function CustomerList() {
           icon={<EditOutlined />}
           onClick={() => showModal(customer)}
           size="large"
-          style={{ minWidth: 90 }}
+          style={{ minWidth: 80 }}
         >
           編集
         </Button>
@@ -249,7 +266,7 @@ export default function CustomerList() {
           icon={<DeleteOutlined />}
           onClick={() => handleDelete(customer.id)}
           size="large"
-          style={{ minWidth: 90 }}
+          style={{ minWidth: 80 }}
         >
           削除
         </Button>
@@ -261,14 +278,25 @@ export default function CustomerList() {
     <div style={{ padding: isMobile ? '12px 8px' : '0' }}>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 24 }}>顧客管理</h1>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => showModal()}
-          size={isMobile ? 'large' : 'middle'}
-        >
-          新規登録
-        </Button>
+        <Space wrap>
+          <Button
+            type="primary"
+            icon={<PhoneFilled />}
+            onClick={() => router.push('/call-work')}
+            size={isMobile ? 'large' : 'middle'}
+            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+          >
+            架電業務へ
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => showModal()}
+            size={isMobile ? 'large' : 'middle'}
+          >
+            新規登録
+          </Button>
+        </Space>
       </div>
 
       {isMobile ? (
