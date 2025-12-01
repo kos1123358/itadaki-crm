@@ -1068,7 +1068,7 @@ export default function CustomerList() {
         // デスクトップ表示（スプリットビュー）
         <Row gutter={16} style={{ height: 'calc(100% - 180px)' }}>
           {selectedCustomer && (
-            <Col span={10} style={{ height: '100%' }}>
+            <Col span={10} style={{ height: '100%', transition: 'all 0.3s' }}>
               <Card
                 style={{ height: '100%', overflow: 'hidden' }}
                 styles={{ body: { padding: 0, height: 'calc(100% - 1px)', overflow: 'hidden' } }}
@@ -1090,7 +1090,7 @@ export default function CustomerList() {
             </Col>
           )}
 
-          <Col span={selectedCustomer ? 14 : 24} style={{ height: '100%', transition: 'all 0.3s' }}>
+          <Col span={selectedCustomer ? 14 : 24} style={{ height: '100%' }}>
             <style jsx global>{`
               .urgent-customer-row > td,
               .urgent-customer-row > td.ant-table-column-sort,
