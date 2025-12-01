@@ -1,13 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider, Collapse } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled, SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { customerAPI } from '@/lib/api';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
+const { RangePicker } = DatePicker;
+
+// ステータス選択肢
+const STATUS_OPTIONS = [
+  '新規登録',
+  '未接触',
+  '架電中',
+  '面談調整中',
+  '面談済み',
+  '選考中',
+  '内定',
+  '入社',
+  '辞退',
+  '不通',
+  '保留',
+];
 
 // カスタムフック：画面サイズ検出
 const useMediaQuery = (query) => {
@@ -34,6 +50,79 @@ export default function CustomerList() {
   const [form] = Form.useForm();
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 768px)');
+
+  // フィルター状態
+  const [filters, setFilters] = useState({
+    searchText: '',
+    status: [],
+    media: [],
+    dateRange: null,
+  });
+  const [showFilters, setShowFilters] = useState(false);
+
+  // 媒体の選択肢を動的に取得
+  const mediaOptions = useMemo(() => {
+    const mediaSet = new Set(customers.map(c => c.media).filter(Boolean));
+    return Array.from(mediaSet).sort();
+  }, [customers]);
+
+  // フィルタリングされた顧客リスト
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(customer => {
+      // テキスト検索（名前、メール、電話番号）
+      if (filters.searchText) {
+        const searchLower = filters.searchText.toLowerCase();
+        const nameMatch = customer.name?.toLowerCase().includes(searchLower);
+        const emailMatch = customer.email?.toLowerCase().includes(searchLower);
+        const phoneMatch = customer.phone_number?.includes(filters.searchText);
+        const furiganaMatch = customer.furigana?.toLowerCase().includes(searchLower);
+        if (!nameMatch && !emailMatch && !phoneMatch && !furiganaMatch) {
+          return false;
+        }
+      }
+
+      // ステータスフィルター
+      if (filters.status.length > 0) {
+        const customerStatus = customer.statusInfo?.current_status;
+        if (!customerStatus || !filters.status.includes(customerStatus)) {
+          return false;
+        }
+      }
+
+      // 媒体フィルター
+      if (filters.media.length > 0) {
+        if (!customer.media || !filters.media.includes(customer.media)) {
+          return false;
+        }
+      }
+
+      // 日付範囲フィルター
+      if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
+        const customerDate = customer.inflow_date ? dayjs(customer.inflow_date) : null;
+        if (!customerDate) return false;
+        const startDate = filters.dateRange[0].startOf('day');
+        const endDate = filters.dateRange[1].endOf('day');
+        if (customerDate.isBefore(startDate) || customerDate.isAfter(endDate)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [customers, filters]);
+
+  // フィルターをクリア
+  const clearFilters = () => {
+    setFilters({
+      searchText: '',
+      status: [],
+      media: [],
+      dateRange: null,
+    });
+  };
+
+  // フィルターが適用されているかチェック
+  const hasActiveFilters = filters.searchText || filters.status.length > 0 || filters.media.length > 0 || filters.dateRange;
 
   useEffect(() => {
     fetchCustomers();
@@ -116,16 +205,19 @@ export default function CustomerList() {
       dataIndex: 'id',
       key: 'id',
       width: 70,
+      sorter: (a, b) => a.id - b.id,
     },
     {
       title: '名前',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a, b) => (a.name || '').localeCompare(b.name || '', 'ja'),
     },
     {
       title: 'メール',
       dataIndex: 'email',
       key: 'email',
+      sorter: (a, b) => (a.email || '').localeCompare(b.email || ''),
     },
     {
       title: '電話番号',
@@ -138,14 +230,39 @@ export default function CustomerList() {
       ) : '-',
     },
     {
+      title: '媒体',
+      dataIndex: 'media',
+      key: 'media',
+      sorter: (a, b) => (a.media || '').localeCompare(b.media || '', 'ja'),
+      render: (media) => media || '-',
+    },
+    {
       title: 'ステータス',
       dataIndex: ['statusInfo', 'current_status'],
       key: 'status',
+      sorter: (a, b) => (a.statusInfo?.current_status || '').localeCompare(b.statusInfo?.current_status || '', 'ja'),
+      render: (status) => status ? (
+        <Tag color={
+          status === '内定' || status === '入社' ? 'green' :
+          status === '辞退' || status === '不通' ? 'red' :
+          status === '面談調整中' || status === '選考中' ? 'blue' :
+          status === '新規登録' || status === '未接触' ? 'orange' :
+          'default'
+        }>
+          {status}
+        </Tag>
+      ) : '-',
     },
     {
       title: '流入日',
       dataIndex: 'inflow_date',
       key: 'inflow_date',
+      sorter: (a, b) => {
+        const dateA = a.inflow_date ? new Date(a.inflow_date).getTime() : 0;
+        const dateB = b.inflow_date ? new Date(b.inflow_date).getTime() : 0;
+        return dateA - dateB;
+      },
+      defaultSortOrder: 'descend',
       render: (date) => (date ? dayjs(date).format('YYYY-MM-DD') : '-'),
     },
     {
@@ -299,18 +416,117 @@ export default function CustomerList() {
         </Space>
       </div>
 
+      {/* 検索・フィルターセクション */}
+      <Card style={{ marginBottom: 16 }} styles={{ body: { padding: isMobile ? 12 : 16 } }}>
+        <Row gutter={[16, 12]} align="middle">
+          <Col xs={24} sm={12} md={8}>
+            <Input
+              placeholder="名前・メール・電話番号で検索"
+              prefix={<SearchOutlined />}
+              value={filters.searchText}
+              onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
+              size={isMobile ? 'large' : 'middle'}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Select
+              mode="multiple"
+              placeholder="ステータスで絞り込み"
+              value={filters.status}
+              onChange={(value) => setFilters({ ...filters, status: value })}
+              style={{ width: '100%' }}
+              size={isMobile ? 'large' : 'middle'}
+              allowClear
+              maxTagCount={2}
+            >
+              {STATUS_OPTIONS.map(status => (
+                <Option key={status} value={status}>{status}</Option>
+              ))}
+            </Select>
+          </Col>
+          <Col xs={12} sm={6} md={4}>
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => setShowFilters(!showFilters)}
+              size={isMobile ? 'large' : 'middle'}
+              style={{ width: '100%' }}
+              type={showFilters ? 'primary' : 'default'}
+            >
+              詳細
+            </Button>
+          </Col>
+          <Col xs={12} sm={6} md={4}>
+            <Button
+              icon={<ClearOutlined />}
+              onClick={clearFilters}
+              size={isMobile ? 'large' : 'middle'}
+              style={{ width: '100%' }}
+              disabled={!hasActiveFilters}
+            >
+              クリア
+            </Button>
+          </Col>
+        </Row>
+
+        {/* 詳細フィルター */}
+        {showFilters && (
+          <Row gutter={[16, 12]} style={{ marginTop: 16 }}>
+            <Col xs={24} sm={12} md={8}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: '#666' }}>媒体</label>
+              <Select
+                mode="multiple"
+                placeholder="媒体で絞り込み"
+                value={filters.media}
+                onChange={(value) => setFilters({ ...filters, media: value })}
+                style={{ width: '100%' }}
+                size={isMobile ? 'large' : 'middle'}
+                allowClear
+                maxTagCount={2}
+              >
+                {mediaOptions.map(media => (
+                  <Option key={media} value={media}>{media}</Option>
+                ))}
+              </Select>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: '#666' }}>流入日</label>
+              <RangePicker
+                value={filters.dateRange}
+                onChange={(dates) => setFilters({ ...filters, dateRange: dates })}
+                style={{ width: '100%' }}
+                size={isMobile ? 'large' : 'middle'}
+                placeholder={['開始日', '終了日']}
+              />
+            </Col>
+          </Row>
+        )}
+
+        {/* フィルター結果表示 */}
+        <div style={{ marginTop: 12, color: '#666', fontSize: 13 }}>
+          {hasActiveFilters ? (
+            <span>
+              <FilterOutlined style={{ marginRight: 4 }} />
+              {filteredCustomers.length}件 / {customers.length}件を表示
+            </span>
+          ) : (
+            <span>全{customers.length}件</span>
+          )}
+        </div>
+      </Card>
+
       {isMobile ? (
         <div style={{ margin: '0 -8px' }}>
           {loading ? (
             <Card loading={true} />
-          ) : customers.length > 0 ? (
-            customers.map(customer => (
+          ) : filteredCustomers.length > 0 ? (
+            filteredCustomers.map(customer => (
               <CustomerCard key={customer.id} customer={customer} />
             ))
           ) : (
             <Card>
               <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>
-                顧客データがありません
+                {hasActiveFilters ? '条件に一致する顧客がありません' : '顧客データがありません'}
               </div>
             </Card>
           )}
@@ -318,7 +534,7 @@ export default function CustomerList() {
       ) : (
         <Table
           columns={columns}
-          dataSource={customers}
+          dataSource={filteredCustomers}
           rowKey="id"
           loading={loading}
           pagination={{
@@ -327,7 +543,8 @@ export default function CustomerList() {
             pageSizeOptions: ['10', '30', '50', '100'],
             showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
           }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1300 }}
+          locale={{ emptyText: hasActiveFilters ? '条件に一致する顧客がありません' : '顧客データがありません' }}
         />
       )}
 
