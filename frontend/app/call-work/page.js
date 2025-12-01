@@ -408,12 +408,27 @@ export default function CallWork() {
   const handleSaveAndNext = async () => {
     try {
       // ヒアリング内容を保存
+      const hearingValues = hearingForm.getFieldsValue();
+
+      // 配列フィールドを文字列に変換（DBの型に合わせる）
+      const hearingData = {
+        current_job_type: hearingValues.current_job_type || null,
+        current_salary: hearingValues.current_salary ? parseInt(hearingValues.current_salary) : null,
+        desired_job_type: hearingValues.desired_job_type || null,
+        desired_industry: hearingValues.desired_industry || null,
+        desired_salary: hearingValues.desired_salary ? parseInt(hearingValues.desired_salary) : null,
+        desired_work_location: hearingValues.desired_work_location || null,
+        transfer_reason: hearingValues.transfer_reason || null,
+      };
+
+      console.log('保存するヒアリングデータ:', hearingData);
+
       try {
-        const hearingValues = await hearingForm.validateFields();
-        await customerAPI.update(currentCustomer.id, hearingValues);
+        await customerAPI.update(currentCustomer.id, hearingData);
         message.success('ヒアリング内容を保存しました');
       } catch (error) {
-        console.log('ヒアリング保存スキップ:', error);
+        console.error('ヒアリング保存エラー:', error);
+        message.error('ヒアリング内容の保存に失敗しました: ' + error.message);
       }
 
       // 架電記録を保存

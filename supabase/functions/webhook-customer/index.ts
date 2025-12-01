@@ -102,6 +102,7 @@ serve(async (req) => {
       address: customerData.address || null,
       media: customerData.media || null,
       route: customerData.route || 'Webhook経由',
+      inflow_date: customerData.inflow_date || new Date().toISOString().split('T')[0],
       current_company: customerData.current_company || null,
       current_job_type: customerData.current_job_type || null,
       current_salary: customerData.current_salary || null,
