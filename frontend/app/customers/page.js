@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider, Collapse, notification } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled, SearchOutlined, FilterOutlined, ClearOutlined, BellOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
-import { customerAPI } from '@/lib/api';
+import { customerAPI, statusAPI } from '@/lib/api';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import dayjs from 'dayjs';
 
@@ -218,6 +218,8 @@ export default function CustomerList() {
       form.setFieldsValue({
         ...customer,
         inflow_date: customer.inflow_date ? dayjs(customer.inflow_date) : null,
+        current_status: customer.statusInfo?.current_status || null,
+        priority: customer.statusInfo?.priority || '中',
       });
     } else {
       form.resetFields();
@@ -228,16 +230,38 @@ export default function CustomerList() {
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
+
+      // ステータス関連のフィールドを分離
+      const { current_status, priority, ...customerValues } = values;
+
       const formattedValues = {
-        ...values,
-        inflow_date: values.inflow_date ? values.inflow_date.toISOString() : null,
+        ...customerValues,
+        inflow_date: customerValues.inflow_date ? customerValues.inflow_date.toISOString() : null,
       };
 
       if (editingCustomer) {
         await customerAPI.update(editingCustomer.id, formattedValues);
+
+        // ステータスが変更された場合は更新
+        if (current_status) {
+          await statusAPI.update(editingCustomer.id, {
+            current_status,
+            priority: priority || '中',
+          });
+        }
+
         message.success('顧客情報を更新しました');
       } else {
-        await customerAPI.create(formattedValues);
+        const newCustomer = await customerAPI.create(formattedValues);
+
+        // 新規登録時にステータスが指定されていれば更新
+        if (current_status && current_status !== '未接触') {
+          await statusAPI.update(newCustomer.data.id, {
+            current_status,
+            priority: priority || '中',
+          });
+        }
+
         message.success('顧客を登録しました');
       }
 
@@ -665,6 +689,34 @@ export default function CustomerList() {
           cancelButtonProps={{ size: isMobile ? 'large' : 'middle' }}
         >
         <Form form={form} layout="vertical">
+          {/* ステータス情報（編集時のみ表示） */}
+          {editingCustomer && (
+            <>
+              <Divider titlePlacement="left" style={{ fontSize: 16, fontWeight: 600 }}>ステータス</Divider>
+              <Row gutter={isMobile ? 0 : 16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item name="current_status" label="ステータス">
+                    <Select size={isMobile ? 'large' : 'middle'} placeholder="ステータスを選択">
+                      {STATUS_OPTIONS.map(status => (
+                        <Option key={status} value={status}>{status}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <Form.Item name="priority" label="優先度">
+                    <Select size={isMobile ? 'large' : 'middle'} placeholder="優先度を選択">
+                      <Option value="低">低</Option>
+                      <Option value="中">中</Option>
+                      <Option value="高">高</Option>
+                      <Option value="最優先">最優先</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
+          )}
+
           <Divider titlePlacement="left" style={{ fontSize: 16, fontWeight: 600 }}>基本情報</Divider>
           <Row gutter={isMobile ? 0 : 16}>
             <Col xs={24} sm={12}>
