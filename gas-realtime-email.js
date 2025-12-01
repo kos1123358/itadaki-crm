@@ -582,7 +582,7 @@ function updateInflowDatesFromSpecificSenders() {
           continue;
         }
 
-        const inflowDate = emailDate.toISOString().split('T')[0];
+        const inflowDate = emailDate.toISOString();  // 時刻も含める
         totalProcessed++;
 
         // DBを更新（流入日と流入元の両方）

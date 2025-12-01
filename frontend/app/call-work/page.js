@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag, Divider, Statistic, Row, Col, message, Badge, Typography, Timeline, Collapse, List, Modal } from 'antd';
-import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag, Divider, Statistic, Row, Col, message, Badge, Typography, Timeline, Collapse, List, Modal, notification } from 'antd';
+import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined, BellOutlined } from '@ant-design/icons';
 import { customerAPI, callHistoryAPI, statusAPI, jobAPI, userAPI } from '@/lib/api';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -271,6 +272,36 @@ export default function CallWork() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // リアルタイム購読: 新規顧客登録を検知
+  const handleRealtimeInsert = useCallback((newCustomer) => {
+    notification.info({
+      message: '新規顧客登録',
+      description: `${newCustomer.name || newCustomer.email} が登録されました`,
+      icon: <BellOutlined style={{ color: '#52c41a' }} />,
+      duration: 5,
+    });
+    // 新しい顧客をリストに追加
+    setCustomers(prev => {
+      if (prev.some(c => c.id === newCustomer.id)) return prev;
+      return [{ ...newCustomer, statusInfo: null, callHistories: [] }, ...prev];
+    });
+  }, []);
+
+  const handleRealtimeUpdate = useCallback((updatedCustomer) => {
+    setCustomers(prev =>
+      prev.map(c => c.id === updatedCustomer.id ? { ...c, ...updatedCustomer } : c)
+    );
+    // 現在表示中の顧客が更新された場合、表示も更新
+    if (currentCustomer?.id === updatedCustomer.id) {
+      setCurrentCustomer(prev => ({ ...prev, ...updatedCustomer }));
+    }
+  }, [currentCustomer?.id]);
+
+  useRealtimeSubscription('customers', {
+    onInsert: handleRealtimeInsert,
+    onUpdate: handleRealtimeUpdate,
+  });
 
   // 顧客が変わったら求人データを取得
   useEffect(() => {

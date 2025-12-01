@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider, Collapse } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled, SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider, Collapse, notification } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled, SearchOutlined, FilterOutlined, ClearOutlined, BellOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { customerAPI } from '@/lib/api';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
@@ -127,6 +128,39 @@ export default function CustomerList() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // リアルタイム購読のコールバック
+  const handleRealtimeInsert = useCallback((newCustomer) => {
+    notification.info({
+      message: '新規顧客登録',
+      description: `${newCustomer.name || newCustomer.email} が登録されました`,
+      icon: <BellOutlined style={{ color: '#1890ff' }} />,
+      duration: 5,
+    });
+    // 新しい顧客をリストの先頭に追加（ステータス情報なしで仮追加）
+    setCustomers(prev => {
+      // 既に存在する場合は追加しない
+      if (prev.some(c => c.id === newCustomer.id)) return prev;
+      return [{ ...newCustomer, statusInfo: null, callHistories: [] }, ...prev];
+    });
+  }, []);
+
+  const handleRealtimeUpdate = useCallback((updatedCustomer) => {
+    setCustomers(prev =>
+      prev.map(c => c.id === updatedCustomer.id ? { ...c, ...updatedCustomer } : c)
+    );
+  }, []);
+
+  const handleRealtimeDelete = useCallback((deletedCustomer) => {
+    setCustomers(prev => prev.filter(c => c.id !== deletedCustomer.id));
+  }, []);
+
+  // Supabase Realtime購読
+  useRealtimeSubscription('customers', {
+    onInsert: handleRealtimeInsert,
+    onUpdate: handleRealtimeUpdate,
+    onDelete: handleRealtimeDelete,
+  });
 
   const fetchCustomers = async () => {
     try {
