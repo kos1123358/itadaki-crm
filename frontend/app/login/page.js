@@ -2,14 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Form, Input, Button, Card, Typography, message } from 'antd';
+import { Form, Input, Button, Card, Typography, message, Modal } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/lib/supabase';
 
-const { Title } = Typography;
+const { Title, Link } = Typography;
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   const { signIn } = useAuth();
   const router = useRouter();
 
@@ -23,6 +27,30 @@ export default function LoginPage() {
       message.error(error.message || 'ログインに失敗しました');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      message.error('メールアドレスを入力してください');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/set-password`,
+      });
+
+      if (error) throw error;
+
+      message.success('パスワードリセットメールを送信しました。メールを確認してください。');
+      setResetModalVisible(false);
+      setResetEmail('');
+    } catch (error) {
+      message.error(error.message || 'メール送信に失敗しました');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -92,7 +120,43 @@ export default function LoginPage() {
               ログイン
             </Button>
           </Form.Item>
+
+          <div style={{ textAlign: 'center' }}>
+            <Link onClick={() => setResetModalVisible(true)}>
+              パスワードを忘れた方・初回ログインの方
+            </Link>
+          </div>
         </Form>
+
+        <Modal
+          title="パスワードリセット"
+          open={resetModalVisible}
+          onCancel={() => setResetModalVisible(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setResetModalVisible(false)}>
+              キャンセル
+            </Button>,
+            <Button
+              key="submit"
+              type="primary"
+              loading={resetLoading}
+              onClick={handlePasswordReset}
+            >
+              リセットメールを送信
+            </Button>,
+          ]}
+        >
+          <p style={{ marginBottom: 16 }}>
+            登録済みのメールアドレスを入力してください。パスワード設定用のリンクをお送りします。
+          </p>
+          <Input
+            prefix={<MailOutlined />}
+            placeholder="メールアドレス"
+            value={resetEmail}
+            onChange={(e) => setResetEmail(e.target.value)}
+            onPressEnter={handlePasswordReset}
+          />
+        </Modal>
       </Card>
     </div>
   );

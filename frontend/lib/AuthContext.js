@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from './supabase';
 
 const AuthContext = createContext({});
@@ -8,6 +9,8 @@ const AuthContext = createContext({});
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -17,13 +20,24 @@ export const AuthProvider = ({ children }) => {
     });
 
     // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Handle invite token - redirect to set-password page
+      if (event === 'SIGNED_IN' && session) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const type = urlParams.get('type') || hashParams.get('type');
+
+        if (type === 'invite' || type === 'recovery') {
+          router.push('/set-password');
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
   const value = {
     signUp: async (email, password) => {
