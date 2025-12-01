@@ -91,6 +91,22 @@ CREATE TABLE call_histories (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Status Histories Table
+CREATE TABLE status_histories (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  previous_status status_type,
+  new_status status_type NOT NULL,
+  previous_priority priority_type,
+  new_priority priority_type,
+  previous_assigned_staff VARCHAR(255),
+  new_assigned_staff VARCHAR(255),
+  changed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  notes TEXT,
+  changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_customers_user_id ON customers(user_id);
 CREATE INDEX idx_customers_email ON customers(email);
@@ -98,6 +114,8 @@ CREATE INDEX idx_customers_name ON customers(name);
 CREATE INDEX idx_statuses_customer_id ON statuses(customer_id);
 CREATE INDEX idx_call_histories_customer_id ON call_histories(customer_id);
 CREATE INDEX idx_call_histories_call_date ON call_histories(call_date DESC);
+CREATE INDEX idx_status_histories_customer_id ON status_histories(customer_id);
+CREATE INDEX idx_status_histories_changed_at ON status_histories(changed_at DESC);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -128,6 +146,7 @@ CREATE TRIGGER update_call_histories_updated_at
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE statuses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE call_histories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE status_histories ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for Customers
 CREATE POLICY "Users can view their own customers"
@@ -239,6 +258,54 @@ CREATE POLICY "Users can delete call histories of their customers"
     EXISTS (
       SELECT 1 FROM customers
       WHERE customers.id = call_histories.customer_id
+      AND customers.user_id = auth.uid()
+    )
+  );
+
+-- RLS Policies for Status Histories
+CREATE POLICY "Users can view status histories of their customers"
+  ON status_histories FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM customers
+      WHERE customers.id = status_histories.customer_id
+      AND customers.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert status histories for their customers"
+  ON status_histories FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM customers
+      WHERE customers.id = status_histories.customer_id
+      AND customers.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update status histories of their customers"
+  ON status_histories FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM customers
+      WHERE customers.id = status_histories.customer_id
+      AND customers.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM customers
+      WHERE customers.id = status_histories.customer_id
+      AND customers.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete status histories of their customers"
+  ON status_histories FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM customers
+      WHERE customers.id = status_histories.customer_id
       AND customers.user_id = auth.uid()
     )
   );
