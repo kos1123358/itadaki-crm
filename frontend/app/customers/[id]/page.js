@@ -160,7 +160,7 @@ export default function CustomerDetail() {
           <Descriptions.Item label="媒体">{customer.media || '-'}</Descriptions.Item>
           <Descriptions.Item label="経路">{customer.route || '-'}</Descriptions.Item>
           <Descriptions.Item label="流入日">
-            {customer.inflow_date ? dayjs(customer.inflow_date).format('YYYY-MM-DD') : '-'}
+            {customer.inflow_date ? dayjs(customer.inflow_date).format('YYYY-MM-DD HH:mm') : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="現職">{customer.current_company || '-'}</Descriptions.Item>
           <Descriptions.Item label="現職種">{customer.current_job_type || '-'}</Descriptions.Item>

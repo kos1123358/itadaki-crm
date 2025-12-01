@@ -263,7 +263,7 @@ export default function CustomerList() {
         return dateA - dateB;
       },
       defaultSortOrder: 'descend',
-      render: (date) => (date ? dayjs(date).format('YYYY-MM-DD') : '-'),
+      render: (date) => (date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'),
     },
     {
       title: '操作',
@@ -344,7 +344,7 @@ export default function CustomerList() {
         )}
         {customer.inflow_date && (
           <div style={{ fontSize: 13, color: '#999' }}>
-            流入日: {dayjs(customer.inflow_date).format('YYYY-MM-DD')}
+            流入日: {dayjs(customer.inflow_date).format('YYYY-MM-DD HH:mm')}
           </div>
         )}
       </div>

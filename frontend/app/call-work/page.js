@@ -1107,7 +1107,7 @@ export default function CallWork() {
                       <div>
                         <Text strong>
                           {displayCustomer.inflow_date
-                            ? dayjs(displayCustomer.inflow_date).format('YYYY-MM-DD')
+                            ? dayjs(displayCustomer.inflow_date).format('YYYY-MM-DD HH:mm')
                             : '-'}
                         </Text>
                         <br />
@@ -1141,7 +1141,7 @@ export default function CallWork() {
                         <div>
                           <Text strong>
                             {displayCustomer.inflow_date
-                              ? dayjs(displayCustomer.inflow_date).format('YYYY-MM-DD')
+                              ? dayjs(displayCustomer.inflow_date).format('YYYY-MM-DD HH:mm')
                               : '-'}
                           </Text>
                           <br />
