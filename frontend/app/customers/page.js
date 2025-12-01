@@ -165,11 +165,38 @@ export default function CustomerList() {
     setCustomers(prev => prev.filter(c => c.id !== deletedCustomer.id));
   }, []);
 
-  // Supabase Realtime購読
+  // Supabase Realtime購読 - customersテーブル
   useRealtimeSubscription('customers', {
     onInsert: handleRealtimeInsert,
     onUpdate: handleRealtimeUpdate,
     onDelete: handleRealtimeDelete,
+  });
+
+  // ステータス変更時のコールバック
+  const handleStatusUpdate = useCallback((updatedStatus) => {
+    console.log('[Realtime] Status updated:', updatedStatus);
+    setCustomers(prev =>
+      prev.map(c => {
+        if (c.id === updatedStatus.customer_id) {
+          return {
+            ...c,
+            statusInfo: {
+              ...c.statusInfo,
+              current_status: updatedStatus.current_status,
+              priority: updatedStatus.priority,
+              status_updated_date: updatedStatus.status_updated_date,
+            }
+          };
+        }
+        return c;
+      })
+    );
+  }, []);
+
+  // Supabase Realtime購読 - statusesテーブル
+  useRealtimeSubscription('statuses', {
+    onInsert: handleStatusUpdate,
+    onUpdate: handleStatusUpdate,
   });
 
   const fetchCustomers = async () => {
