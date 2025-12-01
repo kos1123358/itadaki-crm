@@ -214,8 +214,8 @@ function processGmailMessage(message) {
     if (customerData && customerData.name) {
       // メール受信日時を流入日として追加
       customerData.inflow_date = date.toISOString();
-      // 送信元から流入元を判定
-      customerData.media = getMediaFromSender(from);
+      // 送信元から流入元を判定（転送メール対応）
+      customerData.media = getMediaFromSender(from, body);
       Logger.log('抽出データ: ' + JSON.stringify(customerData));
 
       // Webhookに送信
@@ -236,12 +236,16 @@ function processGmailMessage(message) {
 /**
  * 候補者メールかどうか判定
  * 特定の送信元からのメールのみ処理
+ * 転送メールの場合は本文内の元送信者もチェック
  */
 function isCandidateEmail(subject, body, from) {
-  // 対象の送信元アドレス
+  // 対象の送信元アドレス/ドメイン
   const targetSenders = [
     'snapjob_ad@roxx.co.jp',
-    'contact@jobseeker-navi.com'
+    'snapjob@roxx.co.jp',
+    'roxx.co.jp',  // ドメイン全体も対象
+    'contact@jobseeker-navi.com',
+    'jobseeker-navi.com'  // ドメイン全体も対象
   ];
 
   // 送信元が対象リストに含まれているかチェック
@@ -253,18 +257,43 @@ function isCandidateEmail(subject, body, from) {
     }
   }
 
+  // 転送メールの場合：本文内に元の送信者情報があるかチェック
+  if (body) {
+    for (const sender of targetSenders) {
+      // 転送メールでよくあるパターン: "From: xxx@roxx.co.jp" や "差出人: xxx@roxx.co.jp"
+      if (body.includes(sender)) {
+        Logger.log('転送メール検出: 本文内に ' + sender + ' を発見');
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
 /**
  * 送信元アドレスから流入元（media）を判定
+ * 転送メールの場合は本文からも判定
  */
-function getMediaFromSender(from) {
-  if (from && from.includes('roxx.co.jp')) {
-    return '送客NEXT';
-  } else if (from && from.includes('jobseeker-navi.com')) {
-    return '送客ナビ';
+function getMediaFromSender(from, body) {
+  // まずFromヘッダーをチェック
+  if (from) {
+    if (from.includes('roxx.co.jp')) {
+      return '送客NEXT';
+    } else if (from.includes('jobseeker-navi.com')) {
+      return '送客ナビ';
+    }
   }
+
+  // 転送メールの場合：本文から判定
+  if (body) {
+    if (body.includes('roxx.co.jp') || body.includes('snapjob')) {
+      return '送客NEXT';
+    } else if (body.includes('jobseeker-navi.com')) {
+      return '送客ナビ';
+    }
+  }
+
   return 'Gmail';
 }
 
@@ -494,8 +523,9 @@ function debugCheckEmails() {
 
 /**
  * 特定送信元からのメールを処理して流入日と流入元を更新（再開可能版）
- * snapjob_ad@roxx.co.jp → 送客NEXT
+ * snapjob_ad@roxx.co.jp, snapjob@roxx.co.jp → 送客NEXT
  * contact@jobseeker-navi.com → 送客ナビ
+ * 転送メール（career@itadaki-career.com経由）にも対応
  *
  * タイムアウト対策: 進捗を保存して複数回実行で完了
  * 使い方: 完了するまで繰り返し実行してください
@@ -525,7 +555,9 @@ function updateInflowDatesFromSpecificSenders() {
   // 対象の送信元アドレスと対応する流入元名
   const senderConfig = [
     { email: 'snapjob_ad@roxx.co.jp', media: '送客NEXT', domain: 'roxx.co.jp' },
-    { email: 'contact@jobseeker-navi.com', media: '送客ナビ', domain: 'jobseeker-navi.com' }
+    { email: 'snapjob@roxx.co.jp', media: '送客NEXT', domain: 'roxx.co.jp' },
+    { email: 'contact@jobseeker-navi.com', media: '送客ナビ', domain: 'jobseeker-navi.com' },
+    { email: 'career@itadaki-career.com', media: null, domain: 'itadaki-career.com', isForwarder: true }  // 転送元
   ];
 
   let totalProcessed = 0;
@@ -566,11 +598,29 @@ function updateInflowDatesFromSpecificSenders() {
         const body = message.getPlainBody();
         const emailDate = message.getDate();
 
-        // メール本文から顧客のメールアドレスを抽出（送信元ドメイン除外）
+        // 転送メールの場合、本文から実際の送信元を判定してmediaを決定
+        let actualMedia = config.media;
+        if (config.isForwarder) {
+          // 本文内に元の送信元があるかチェック
+          if (body.includes('roxx.co.jp') || body.includes('snapjob')) {
+            actualMedia = '送客NEXT';
+            Logger.log('転送メール: 送客NEXT を検出');
+          } else if (body.includes('jobseeker-navi.com')) {
+            actualMedia = '送客ナビ';
+            Logger.log('転送メール: 送客ナビ を検出');
+          } else {
+            // 対象の送信元が見つからない場合はスキップ
+            Logger.log('転送メール: 対象送信元が見つからないためスキップ');
+            continue;
+          }
+        }
+
+        // メール本文から顧客のメールアドレスを抽出（送信元・転送元ドメイン除外）
         const allEmails = body.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
         const customerEmails = allEmails.filter(email =>
           !email.includes('roxx.co.jp') &&
-          !email.includes('jobseeker-navi.com')
+          !email.includes('jobseeker-navi.com') &&
+          !email.includes('itadaki-career.com')
         );
 
         if (customerEmails.length === 0) continue;
@@ -599,7 +649,7 @@ function updateInflowDatesFromSpecificSenders() {
               },
               payload: JSON.stringify({
                 inflow_date: inflowDate,
-                media: config.media
+                media: actualMedia
               }),
               muteHttpExceptions: true
             }
@@ -609,7 +659,7 @@ function updateInflowDatesFromSpecificSenders() {
           if (statusCode >= 200 && statusCode < 300) {
             const result = JSON.parse(updateResponse.getContentText());
             if (result && result.length > 0) {
-              Logger.log('更新: ' + customerEmail + ' -> ' + inflowDate + ' / ' + config.media);
+              Logger.log('更新: ' + customerEmail + ' -> ' + inflowDate + ' / ' + actualMedia);
               totalUpdated++;
             }
           }
