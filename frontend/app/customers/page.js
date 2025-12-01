@@ -315,10 +315,20 @@ export default function CustomerList() {
       ),
     },
     {
-      title: 'メール',
-      dataIndex: 'email',
-      key: 'email',
-      sorter: (a, b) => (a.email || '').localeCompare(b.email || ''),
+      title: '架電数',
+      dataIndex: 'callHistories',
+      key: 'callCount',
+      width: 80,
+      align: 'center',
+      sorter: (a, b) => (a.callHistories?.length || 0) - (b.callHistories?.length || 0),
+      render: (callHistories) => {
+        const count = callHistories?.length || 0;
+        return (
+          <Tag color={count === 0 ? 'default' : count < 3 ? 'blue' : 'green'}>
+            {count}回
+          </Tag>
+        );
+      },
     },
     {
       title: '電話番号',
