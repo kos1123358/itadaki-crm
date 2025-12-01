@@ -99,24 +99,32 @@ export default function UsersPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('認証されていません');
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/user-management?action=update-profile`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: editingUser.id,
-            username: values.username || null,
-          }),
-        }
-      );
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/user-management?action=update-profile`;
+      console.log('Update URL:', url);
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editingUser.id,
+          username: values.username || null,
+        }),
+      });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'ユーザー名の更新に失敗しました');
+        const errorText = await response.text();
+        console.error('Response error:', response.status, errorText);
+        let errorMessage = 'ユーザー名の更新に失敗しました';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       message.success('ユーザー名を更新しました');
@@ -126,7 +134,10 @@ export default function UsersPage() {
       fetchUsers();
     } catch (error) {
       console.error('更新エラー:', error);
-      message.error(error.message || 'ユーザー名の更新に失敗しました');
+      const errorMsg = error.message === 'Failed to fetch'
+        ? 'ネットワークエラー: サーバーに接続できません'
+        : error.message || 'ユーザー名の更新に失敗しました';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
