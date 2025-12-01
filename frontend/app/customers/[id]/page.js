@@ -19,7 +19,7 @@ import {
   Space,
   Divider,
 } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined, EditOutlined, HistoryOutlined, PhoneFilled, CalendarOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlusOutlined, EditOutlined, HistoryOutlined, PhoneFilled, CalendarOutlined, DeleteOutlined } from '@ant-design/icons';
 import { customerAPI, callHistoryAPI, statusAPI, statusHistoryAPI } from '@/lib/api';
 import dayjs from 'dayjs';
 
@@ -115,6 +115,25 @@ export default function CustomerDetail() {
     }
   };
 
+  const handleDelete = () => {
+    Modal.confirm({
+      title: '顧客を削除しますか？',
+      content: 'この操作は取り消せません。関連する架電履歴やステータス情報も全て削除されます。',
+      okText: '削除',
+      okType: 'danger',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        try {
+          await customerAPI.delete(id);
+          message.success('顧客を削除しました');
+          router.push('/customers');
+        } catch (error) {
+          message.error('削除に失敗しました');
+          console.error('削除エラー:', error);
+        }
+      },
+    });
+  };
 
   if (loading || !customer) {
     return <div>読み込み中...</div>;
@@ -122,22 +141,31 @@ export default function CustomerDetail() {
 
   return (
     <div style={{ padding: isMobile ? '12px 8px' : '0' }}>
-      <Space style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => router.push('/customers')}
+          >
+            戻る
+          </Button>
+          <Button
+            type="primary"
+            icon={<PhoneFilled />}
+            onClick={() => router.push(`/call-work?customerId=${id}`)}
+            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+          >
+            この顧客から架電開始
+          </Button>
+        </Space>
         <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => router.push('/customers')}
+          danger
+          icon={<DeleteOutlined />}
+          onClick={handleDelete}
         >
-          戻る
+          顧客を削除
         </Button>
-        <Button
-          type="primary"
-          icon={<PhoneFilled />}
-          onClick={() => router.push(`/call-work?customerId=${id}`)}
-          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-        >
-          この顧客から架電開始
-        </Button>
-      </Space>
+      </div>
 
       <Card
         title={`顧客詳細: ${customer.name}`}

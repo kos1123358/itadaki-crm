@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, DatePicker, InputNumber, message, Card, Tag, Row, Col, Divider, Collapse, notification } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled, SearchOutlined, FilterOutlined, ClearOutlined, BellOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, PhoneOutlined, MailOutlined, UserOutlined, PhoneFilled, SearchOutlined, FilterOutlined, ClearOutlined, BellOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { customerAPI, statusAPI } from '@/lib/api';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
@@ -274,33 +274,28 @@ export default function CustomerList() {
     }
   };
 
-  const handleDelete = async (id) => {
-    Modal.confirm({
-      title: '顧客を削除しますか？',
-      content: 'この操作は取り消せません。',
-      okText: '削除',
-      okType: 'danger',
-      cancelText: 'キャンセル',
-      onOk: async () => {
-        try {
-          await customerAPI.delete(id);
-          message.success('顧客を削除しました');
-          fetchCustomers();
-        } catch (error) {
-          message.error('削除に失敗しました');
-          console.error('削除エラー:', error);
-        }
-      },
-    });
-  };
-
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 70,
-      sorter: (a, b) => a.id - b.id,
+      title: '',
+      key: 'actions',
+      width: 80,
+      fixed: 'left',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="text"
+            icon={<PhoneFilled style={{ color: '#52c41a', fontSize: 18 }} />}
+            onClick={() => router.push(`/call-work?customerId=${record.id}`)}
+            title="架電"
+          />
+          <Button
+            type="text"
+            icon={<EditOutlined style={{ color: '#1890ff', fontSize: 18 }} />}
+            onClick={() => showModal(record)}
+            title="編集"
+          />
+        </Space>
+      ),
     },
     {
       title: '名前',
@@ -309,7 +304,12 @@ export default function CustomerList() {
       sorter: (a, b) => (a.name || '').localeCompare(b.name || '', 'ja'),
       render: (name, record) => (
         <Space>
-          {name}
+          <a
+            onClick={() => router.push(`/customers/${record.id}`)}
+            style={{ color: '#1890ff', cursor: 'pointer' }}
+          >
+            {name}
+          </a>
           {isUrgentCustomer(record) && <Tag color="red">要対応</Tag>}
         </Space>
       ),
@@ -376,45 +376,6 @@ export default function CustomerList() {
       defaultSortOrder: 'descend',
       render: (date) => (date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 220,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<PhoneFilled />}
-            onClick={() => router.push(`/call-work?customerId=${record.id}`)}
-            style={{ color: '#52c41a' }}
-          >
-            架電
-          </Button>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => router.push(`/customers/${record.id}`)}
-          >
-            詳細
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => showModal(record)}
-          >
-            編集
-          </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id)}
-          >
-            削除
-          </Button>
-        </Space>
-      ),
-    },
   ];
 
   // モバイル用カードコンポーネント
@@ -432,8 +393,13 @@ export default function CustomerList() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-              <UserOutlined style={{ marginRight: 8 }} />
-              {customer.name}
+              <a
+                onClick={() => router.push(`/customers/${customer.id}`)}
+                style={{ color: '#1890ff', cursor: 'pointer' }}
+              >
+                <UserOutlined style={{ marginRight: 8 }} />
+                {customer.name}
+              </a>
               {urgent && <Tag color="red" style={{ marginLeft: 8 }}>要対応</Tag>}
             </h3>
             {customer.statusInfo?.current_status && (
@@ -442,7 +408,6 @@ export default function CustomerList() {
               </Tag>
             )}
           </div>
-          <span style={{ color: '#999', fontSize: 12 }}>ID: {customer.id}</span>
         </div>
 
       <div style={{ marginBottom: 12 }}>
@@ -469,41 +434,23 @@ export default function CustomerList() {
 
       <Divider style={{ margin: '12px 0' }} />
 
-      <Space size="small" style={{ width: '100%', justifyContent: 'space-around', flexWrap: 'wrap' }}>
+      <Space size="middle" style={{ width: '100%', justifyContent: 'center' }}>
         <Button
           type="primary"
           icon={<PhoneFilled />}
           onClick={() => router.push(`/call-work?customerId=${customer.id}`)}
           size="large"
-          style={{ minWidth: 80, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+          style={{ minWidth: 120, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
         >
           架電
-        </Button>
-        <Button
-          type="primary"
-          icon={<EyeOutlined />}
-          onClick={() => router.push(`/customers/${customer.id}`)}
-          size="large"
-          style={{ minWidth: 80 }}
-        >
-          詳細
         </Button>
         <Button
           icon={<EditOutlined />}
           onClick={() => showModal(customer)}
           size="large"
-          style={{ minWidth: 80 }}
+          style={{ minWidth: 120 }}
         >
           編集
-        </Button>
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDelete(customer.id)}
-          size="large"
-          style={{ minWidth: 80 }}
-        >
-          削除
         </Button>
       </Space>
     </Card>
@@ -675,7 +622,7 @@ export default function CustomerList() {
               pageSizeOptions: ['10', '30', '50', '100'],
               showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
             }}
-            scroll={{ x: 1300 }}
+            scroll={{ x: 1000 }}
             locale={{ emptyText: hasActiveFilters ? '条件に一致する顧客がありません' : '顧客データがありません' }}
             rowClassName={(record) => isUrgentCustomer(record) ? 'urgent-customer-row' : ''}
           />
