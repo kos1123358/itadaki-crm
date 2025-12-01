@@ -17,8 +17,9 @@ import {
   Timeline,
   Typography,
   Space,
+  Divider,
 } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined, EditOutlined, HistoryOutlined, PhoneFilled } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlusOutlined, EditOutlined, HistoryOutlined, PhoneFilled, CalendarOutlined } from '@ant-design/icons';
 import { customerAPI, callHistoryAPI, statusAPI, statusHistoryAPI } from '@/lib/api';
 import dayjs from 'dayjs';
 
@@ -219,6 +220,36 @@ export default function CustomerDetail() {
         )}
       </Card>
 
+      {/* ネクストアクションカード - 最新の架電履歴から取得 */}
+      {(() => {
+        const latestCallWithNextAction = customer.callHistories?.find(
+          (h) => h.next_action || h.next_contact_date
+        );
+        if (!latestCallWithNextAction) return null;
+        return (
+          <Card
+            title={
+              <Space>
+                <CalendarOutlined />
+                ネクストアクション
+              </Space>
+            }
+            style={{ marginBottom: 16, margin: isMobile ? '0 -8px 16px' : '0 0 16px 0' }}
+          >
+            <Descriptions bordered column={{ xs: 1, sm: 1, md: 2, lg: 2 }}>
+              <Descriptions.Item label="次回連絡予定日">
+                {latestCallWithNextAction.next_contact_date
+                  ? dayjs(latestCallWithNextAction.next_contact_date).format('YYYY-MM-DD')
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="次回アクション">
+                {latestCallWithNextAction.next_action || '-'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        );
+      })()}
+
       <Card
         title="ステータス変更履歴"
         style={{ marginBottom: 16, margin: isMobile ? '0 -8px 16px' : '0 0 16px 0' }}
@@ -307,8 +338,33 @@ export default function CustomerDetail() {
                     </Tag>
                     {history.staff_name && <Text type="secondary">担当: {history.staff_name}</Text>}
                   </Space>
-                  <br />
-                  <Text type="secondary">{history.notes}</Text>
+                  {history.notes && (
+                    <>
+                      <br />
+                      <Text type="secondary">{history.notes}</Text>
+                    </>
+                  )}
+                  {(history.next_action || history.next_contact_date) && (
+                    <>
+                      <Divider orientation="left" style={{ margin: '8px 0', fontSize: 12 }}>
+                        ネクストアクション
+                      </Divider>
+                      <div style={{ paddingLeft: 8 }}>
+                        {history.next_contact_date && (
+                          <div>
+                            <Text type="secondary">次回連絡予定日: </Text>
+                            <Tag color="blue">{dayjs(history.next_contact_date).format('YYYY-MM-DD')}</Tag>
+                          </div>
+                        )}
+                        {history.next_action && (
+                          <div>
+                            <Text type="secondary">次回アクション: </Text>
+                            <Text>{history.next_action}</Text>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             }))}
