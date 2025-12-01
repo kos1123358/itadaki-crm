@@ -11,6 +11,7 @@ import {
   MenuOutlined,
   LogoutOutlined,
   PhoneFilled,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -54,6 +55,7 @@ export default function AppLayout({ children }) {
     if (pathname.startsWith('/customers')) return '2';
     if (pathname.startsWith('/call-work')) return '3';
     if (pathname.startsWith('/call-histories')) return '4';
+    if (pathname.startsWith('/users')) return '5';
     return '1';
   };
 
@@ -98,6 +100,11 @@ export default function AppLayout({ children }) {
       key: '4',
       icon: <PhoneOutlined />,
       label: <Link href="/call-histories" onClick={() => setDrawerVisible(false)}>架電履歴</Link>,
+    },
+    {
+      key: '5',
+      icon: <TeamOutlined />,
+      label: <Link href="/users" onClick={() => setDrawerVisible(false)}>ユーザー管理</Link>,
     },
   ];
 
