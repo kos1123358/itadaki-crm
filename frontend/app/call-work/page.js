@@ -478,13 +478,24 @@ export default function CallWork() {
 
       // 配列フィールドを文字列に変換（DBの型に合わせる）
       const hearingData = {
+        // 職務情報
+        current_company: hearingValues.current_company || null,
         current_job_type: hearingValues.current_job_type || null,
         current_salary: hearingValues.current_salary ? parseInt(hearingValues.current_salary) : null,
+        company_experience_count: hearingValues.company_experience_count ? parseInt(hearingValues.company_experience_count) : null,
+        final_education: hearingValues.final_education || null,
+        job_change_schedule: hearingValues.job_change_schedule || null,
+        job_change_status: hearingValues.job_change_status || null,
+        employment_start_period: hearingValues.employment_start_period || null,
+        // 希望条件
         desired_job_type: hearingValues.desired_job_type || null,
         desired_industry: hearingValues.desired_industry || null,
         desired_salary: hearingValues.desired_salary ? parseInt(hearingValues.desired_salary) : null,
         desired_work_location: hearingValues.desired_work_location || null,
         transfer_reason: hearingValues.transfer_reason || null,
+        // その他
+        drivers_license: hearingValues.drivers_license,
+        available_time: hearingValues.available_time || null,
       };
 
       console.log('保存するヒアリングデータ:', hearingData);
@@ -734,13 +745,24 @@ export default function CallWork() {
     setLivePreviewData(null); // ライブプレビューをクリア
 
     hearingForm.setFieldsValue({
+      // 職務情報
+      current_company: currentCustomer.current_company || '',
       current_job_type: currentCustomer.current_job_type || '',
       current_salary: currentCustomer.current_salary || '',
+      company_experience_count: currentCustomer.company_experience_count || '',
+      final_education: currentCustomer.final_education || undefined,
+      job_change_schedule: currentCustomer.job_change_schedule || undefined,
+      job_change_status: currentCustomer.job_change_status || undefined,
+      employment_start_period: currentCustomer.employment_start_period || undefined,
+      // 希望条件
       desired_job_type: jobTypes,
       desired_industry: industries,
       desired_salary: currentCustomer.desired_salary || '',
       desired_work_location: currentCustomer.desired_work_location || '',
       transfer_reason: currentCustomer.transfer_reason || '',
+      // その他
+      drivers_license: currentCustomer.drivers_license,
+      available_time: currentCustomer.available_time || '',
     });
   }, [currentCustomer, hearingForm]);
 
@@ -1499,18 +1521,84 @@ export default function CallWork() {
                 ),
                 children: (
                   <Form form={hearingForm} layout="vertical" size="small" disabled={isPreviewMode} onValuesChange={updateLivePreview}>
+              {/* 職務情報 */}
+              <Divider orientation="left" style={{ margin: '8px 0', fontSize: 12 }}>職務情報</Divider>
               <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="current_company" label="現職（会社名）">
+                    <Input placeholder="例: 株式会社〇〇" />
+                  </Form.Item>
+                </Col>
                 <Col span={12}>
                   <Form.Item name="current_job_type" label="現職種">
                     <Input placeholder="例: 営業" />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+              </Row>
+              <Row gutter={12}>
+                <Col span={8}>
                   <Form.Item name="current_salary" label="現年収（万円）">
                     <Input type="number" placeholder="例: 450" />
                   </Form.Item>
                 </Col>
+                <Col span={8}>
+                  <Form.Item name="company_experience_count" label="社数経験">
+                    <Input type="number" placeholder="例: 3" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="final_education" label="最終学歴">
+                    <Select placeholder="選択" allowClear>
+                      <Option value="中学卒">中学卒</Option>
+                      <Option value="高校卒">高校卒</Option>
+                      <Option value="専門学校卒">専門学校卒</Option>
+                      <Option value="短大卒">短大卒</Option>
+                      <Option value="大学卒">大学卒</Option>
+                      <Option value="大学院卒">大学院卒</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
               </Row>
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item name="job_change_schedule" label="転職希望時期">
+                    <Select placeholder="選択" allowClear>
+                      <Option value="すぐにでも">すぐにでも</Option>
+                      <Option value="1ヶ月以内">1ヶ月以内</Option>
+                      <Option value="3ヶ月以内">3ヶ月以内</Option>
+                      <Option value="6ヶ月以内">6ヶ月以内</Option>
+                      <Option value="1年以内">1年以内</Option>
+                      <Option value="未定">未定</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="job_change_status" label="転職活動状況">
+                    <Select placeholder="選択" allowClear>
+                      <Option value="情報収集中">情報収集中</Option>
+                      <Option value="積極的に活動中">積極的に活動中</Option>
+                      <Option value="良い案件があれば">良い案件があれば</Option>
+                      <Option value="内定保有">内定保有</Option>
+                      <Option value="活動休止中">活動休止中</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="employment_start_period" label="入社可能時期">
+                    <Select placeholder="選択" allowClear>
+                      <Option value="即日">即日</Option>
+                      <Option value="2週間以内">2週間以内</Option>
+                      <Option value="1ヶ月以内">1ヶ月以内</Option>
+                      <Option value="2ヶ月以内">2ヶ月以内</Option>
+                      <Option value="3ヶ月以内">3ヶ月以内</Option>
+                      <Option value="応相談">応相談</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              {/* 希望条件 */}
+              <Divider orientation="left" style={{ margin: '8px 0', fontSize: 12 }}>希望条件</Divider>
               <Form.Item name="desired_job_type" label="希望職種（複数選択可）">
                 <Space direction="vertical" style={{ width: '100%' }} size="small">
                   <Space size="small">
@@ -1592,6 +1680,24 @@ export default function CallWork() {
               <Form.Item name="transfer_reason" label="転職理由・きっかけ">
                 <TextArea rows={3} placeholder="転職を考えられたきっかけや理由を記入..." />
               </Form.Item>
+
+              {/* その他 */}
+              <Divider orientation="left" style={{ margin: '8px 0', fontSize: 12 }}>その他</Divider>
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item name="drivers_license" label="運転免許">
+                    <Select placeholder="選択" allowClear>
+                      <Option value={true}>あり</Option>
+                      <Option value={false}>なし</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={16}>
+                  <Form.Item name="available_time" label="繋がりやすい時間帯">
+                    <Input placeholder="例: 平日18時以降、土日終日" />
+                  </Form.Item>
+                </Col>
+              </Row>
             </Form>
                 )
               }
