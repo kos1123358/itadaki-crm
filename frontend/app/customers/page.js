@@ -208,7 +208,7 @@ const CustomerDetailPanel = ({
           }
         >
           {customer.statusInfo ? (
-            <Descriptions bordered size="small" column={1}>
+            <Descriptions bordered size="small" column={1} labelStyle={{ width: 130, whiteSpace: 'nowrap' }}>
               <Descriptions.Item label="ステータス">
                 <Tag color="blue">{customer.statusInfo.current_status}</Tag>
               </Descriptions.Item>
@@ -242,7 +242,7 @@ const CustomerDetailPanel = ({
             size="small"
             style={{ marginBottom: 16 }}
           >
-            <Descriptions bordered size="small" column={1}>
+            <Descriptions bordered size="small" column={1} labelStyle={{ width: 130, whiteSpace: 'nowrap' }}>
               <Descriptions.Item label="予定日時">
                 {latestCallWithNextAction.next_contact_date
                   ? dayjs(latestCallWithNextAction.next_contact_date).format('YYYY-MM-DD HH:mm')
@@ -257,7 +257,7 @@ const CustomerDetailPanel = ({
 
         {/* 基本情報 */}
         <Card title="基本情報" size="small" style={{ marginBottom: 16 }}>
-          <Descriptions bordered size="small" column={1}>
+          <Descriptions bordered size="small" column={1} labelStyle={{ width: 130, whiteSpace: 'nowrap' }}>
             <Descriptions.Item label="ふりがな">{customer.furigana || '-'}</Descriptions.Item>
             <Descriptions.Item label="電話番号">
               {customer.phone_number ? (
@@ -284,7 +284,7 @@ const CustomerDetailPanel = ({
 
         {/* 職務情報 */}
         <Card title="職務情報" size="small" style={{ marginBottom: 16 }}>
-          <Descriptions bordered size="small" column={1}>
+          <Descriptions bordered size="small" column={1} labelStyle={{ width: 130, whiteSpace: 'nowrap' }}>
             <Descriptions.Item label="現職">{customer.current_company || '-'}</Descriptions.Item>
             <Descriptions.Item label="現職種">{customer.current_job_type || '-'}</Descriptions.Item>
             <Descriptions.Item label="現年収">
@@ -300,7 +300,7 @@ const CustomerDetailPanel = ({
 
         {/* 希望条件 */}
         <Card title="希望条件" size="small" style={{ marginBottom: 16 }}>
-          <Descriptions bordered size="small" column={1}>
+          <Descriptions bordered size="small" column={1} labelStyle={{ width: 130, whiteSpace: 'nowrap' }}>
             <Descriptions.Item label="希望職種">{customer.desired_job_type || '-'}</Descriptions.Item>
             <Descriptions.Item label="希望業種">{customer.desired_industry || '-'}</Descriptions.Item>
             <Descriptions.Item label="希望年収">
@@ -314,7 +314,7 @@ const CustomerDetailPanel = ({
 
         {/* その他 */}
         <Card title="その他" size="small" style={{ marginBottom: 16 }}>
-          <Descriptions bordered size="small" column={1}>
+          <Descriptions bordered size="small" column={1} labelStyle={{ width: 130, whiteSpace: 'nowrap' }}>
             <Descriptions.Item label="運転免許">
               {customer.drivers_license === true ? 'あり' : customer.drivers_license === false ? 'なし' : '-'}
             </Descriptions.Item>
