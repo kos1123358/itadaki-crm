@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag, Divider, Statistic, Row, Col, message, Badge, Typography, Timeline, Collapse, List, Modal, notification } from 'antd';
-import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined, BellOutlined } from '@ant-design/icons';
-import { customerAPI, callHistoryAPI, statusAPI, jobAPI, userAPI } from '@/lib/api';
+import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag, Divider, Statistic, Row, Col, message, Badge, Typography, Timeline, Collapse, List, Modal, notification, Drawer, Menu } from 'antd';
+import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined, BellOutlined, BookOutlined, FileTextOutlined } from '@ant-design/icons';
+import { customerAPI, callHistoryAPI, statusAPI, jobAPI, userAPI, talkScriptAPI } from '@/lib/api';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import dayjs from 'dayjs';
 
@@ -254,6 +254,13 @@ export default function CallWork() {
   const [users, setUsers] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  // トークスクリプト関連
+  const [isScriptDrawerOpen, setIsScriptDrawerOpen] = useState(false);
+  const [talkScripts, setTalkScripts] = useState([]);
+  const [selectedScript, setSelectedScript] = useState(null);
+  const [scriptCategories, setScriptCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
   // JSON文字列または配列を配列に変換するヘルパー関数
   const parseArrayField = (value) => {
     if (Array.isArray(value)) return value;
@@ -313,7 +320,20 @@ export default function CallWork() {
   // ユーザー一覧を取得
   useEffect(() => {
     fetchUsers();
+    fetchTalkScripts();
   }, []);
+
+  const fetchTalkScripts = async () => {
+    try {
+      const { data } = await talkScriptAPI.getAll();
+      setTalkScripts(data || []);
+      // カテゴリ一覧を抽出
+      const categories = [...new Set(data.map(s => s.category).filter(Boolean))];
+      setScriptCategories(categories);
+    } catch (error) {
+      console.error('トークスクリプト取得エラー:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -1966,6 +1986,135 @@ export default function CallWork() {
           )}
         </Space>
       </div>
+
+      {/* トークスクリプトボタン（右下フローティング） */}
+      <Button
+        type="primary"
+        shape="circle"
+        size="large"
+        icon={<BookOutlined />}
+        onClick={() => setIsScriptDrawerOpen(true)}
+        style={{
+          position: 'fixed',
+          right: 24,
+          bottom: 100,
+          width: 56,
+          height: 56,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          zIndex: 99,
+        }}
+        title="トークスクリプト"
+      />
+
+      {/* トークスクリプトDrawer */}
+      <Drawer
+        title={
+          <Space>
+            <BookOutlined />
+            トークスクリプト
+          </Space>
+        }
+        placement="right"
+        width={480}
+        onClose={() => {
+          setIsScriptDrawerOpen(false);
+          setSelectedScript(null);
+        }}
+        open={isScriptDrawerOpen}
+        styles={{ body: { padding: 0 } }}
+      >
+        <div style={{ display: 'flex', height: '100%' }}>
+          {/* カテゴリメニュー */}
+          <div style={{ width: 120, borderRight: '1px solid #f0f0f0', backgroundColor: '#fafafa' }}>
+            <Menu
+              mode="vertical"
+              selectedKeys={selectedCategory ? [selectedCategory] : []}
+              onClick={({ key }) => {
+                setSelectedCategory(key === selectedCategory ? null : key);
+                setSelectedScript(null);
+              }}
+              style={{ border: 'none', backgroundColor: 'transparent' }}
+              items={[
+                { key: 'all', label: 'すべて', icon: <FileTextOutlined /> },
+                ...scriptCategories.map(cat => ({
+                  key: cat,
+                  label: cat,
+                }))
+              ]}
+            />
+          </div>
+
+          {/* スクリプト一覧 & 詳細 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {selectedScript ? (
+              // スクリプト詳細表示
+              <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+                <Button
+                  type="link"
+                  onClick={() => setSelectedScript(null)}
+                  style={{ padding: 0, marginBottom: 12 }}
+                >
+                  ← 一覧に戻る
+                </Button>
+                <div style={{ marginBottom: 8 }}>
+                  <Tag color="blue">{selectedScript.category}</Tag>
+                </div>
+                <Title level={4} style={{ marginBottom: 8 }}>{selectedScript.title}</Title>
+                {selectedScript.description && (
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                    {selectedScript.description}
+                  </Text>
+                )}
+                <Divider style={{ margin: '12px 0' }} />
+                <div
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.8,
+                    fontSize: 14,
+                    backgroundColor: '#f9f9f9',
+                    padding: 16,
+                    borderRadius: 8,
+                    border: '1px solid #e8e8e8',
+                  }}
+                >
+                  {selectedScript.content}
+                </div>
+              </div>
+            ) : (
+              // スクリプト一覧
+              <div style={{ padding: 8, height: '100%', overflow: 'auto' }}>
+                <List
+                  dataSource={talkScripts.filter(s =>
+                    !selectedCategory || selectedCategory === 'all' || s.category === selectedCategory
+                  )}
+                  locale={{ emptyText: 'スクリプトがありません' }}
+                  renderItem={(script) => (
+                    <List.Item
+                      key={script.id}
+                      style={{ padding: '8px 12px', cursor: 'pointer' }}
+                      onClick={() => setSelectedScript(script)}
+                    >
+                      <div style={{ width: '100%' }}>
+                        <div style={{ marginBottom: 4 }}>
+                          <Tag color="blue" style={{ fontSize: 11 }}>{script.category}</Tag>
+                        </div>
+                        <Text strong>{script.title}</Text>
+                        {script.description && (
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {script.description}
+                            </Text>
+                          </div>
+                        )}
+                      </div>
+                    </List.Item>
+                  )}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 }

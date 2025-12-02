@@ -616,3 +616,107 @@ export const userAPI = {
     return { data };
   },
 };
+
+// トークスクリプトAPI
+export const talkScriptAPI = {
+  getAll: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('talk_scripts')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return { data };
+  },
+
+  getByCategory: async (category) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('talk_scripts')
+      .select('*')
+      .eq('category', category)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return { data };
+  },
+
+  getById: async (id) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('talk_scripts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return { data };
+  },
+
+  create: async (scriptData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('talk_scripts')
+      .insert(scriptData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data };
+  },
+
+  update: async (id, scriptData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('talk_scripts')
+      .update(scriptData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data };
+  },
+
+  delete: async (id) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+      .from('talk_scripts')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return { success: true };
+  },
+
+  getCategories: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('talk_scripts')
+      .select('category')
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    // 重複を除去してカテゴリ一覧を返す
+    const categories = [...new Set(data.map(d => d.category).filter(Boolean))];
+    return { data: categories };
+  },
+};
