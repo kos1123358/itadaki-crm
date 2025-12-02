@@ -243,7 +243,7 @@ export default function CallWork() {
   const [isJobModalVisible, setIsJobModalVisible] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [activeCallRecord, setActiveCallRecord] = useState(['call-record']);
-  const [activeHearing, setActiveHearing] = useState(['hearing']);
+  const [activeHearing, setActiveHearing] = useState([]);
   const [activeJobs, setActiveJobs] = useState([]);
   const [todayStats, setTodayStats] = useState({
     total: 0,
@@ -608,8 +608,11 @@ export default function CallWork() {
   const handleResultClick = (result) => {
     setSelectedResult(result);
     callForm.setFieldsValue({ call_result: result });
-    // 接続成功以外の場合はステータスをクリア
-    if (result !== '接続成功') {
+    // 接続成功の場合はヒアリング項目を開く
+    if (result === '接続成功') {
+      setActiveHearing(['hearing']);
+    } else {
+      // 接続成功以外の場合はステータスをクリア
       setSelectedStatus(null);
       callForm.setFieldsValue({ new_status: undefined });
     }
