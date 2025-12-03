@@ -94,6 +94,41 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // Admin操作用トリガー
+    if (data.trigger === 'admin') {
+      Logger.log('Admin操作: ' + data.action);
+
+      if (data.action === 'resetReprocessProgress') {
+        resetReprocessRoxxProgress();
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: '進捗リセット完了'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (data.action === 'reprocessAllRoxxEmails') {
+        const result = reprocessAllRoxxEmails();
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: 'バッチ処理実行',
+          result: result
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (data.action === 'checkReprocessProgress') {
+        const progress = checkReprocessRoxxProgress();
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          progress: progress
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        message: '不明なadminアクション: ' + data.action
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
       message: '不明なトリガー'
@@ -335,6 +370,7 @@ function getMediaFromSender(from, body) {
 
 /**
  * メール本文から顧客情報を抽出
+ * roxx (Zキャリア/送客NEXT) メールのフォーマットに完全対応
  */
 function extractCustomerData(body) {
   const data = {};
@@ -345,6 +381,14 @@ function extractCustomerData(body) {
   // 名前の抽出（氏名：の後、改行または<br>まで）
   const nameMatch = body.match(/(?:氏名|名前|お名前)[：:\s]*([^\n\r<]+)/);
   if (nameMatch) data.name = removeHtml(nameMatch[1].trim());
+
+  // ふりがなの抽出
+  const furiganaMatch = body.match(/(?:ふりがな|フリガナ)[：:\s]*([^\n\r<]+)/);
+  if (furiganaMatch) data.furigana = removeHtml(furiganaMatch[1].trim());
+
+  // 性別の抽出
+  const genderMatch = body.match(/(?:性別)[：:\s]*(男性|女性|その他)/);
+  if (genderMatch) data.gender = genderMatch[1];
 
   // メールアドレスの抽出（roxx.co.jp, jobseeker-navi.com, itadaki-career.com を除外）
   const allEmails = body.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
@@ -369,13 +413,59 @@ function extractCustomerData(body) {
     }
   }
 
-  // 年齢の抽出
-  const ageMatch = body.match(/(?:年齢)[：:\s]*(\d+)/);
+  // 年齢の抽出（「27歳」形式にも対応）
+  const ageMatch = body.match(/(?:年齢)[：:\s]*(\d+)(?:歳)?/);
   if (ageMatch) data.age = parseInt(ageMatch[1]);
 
-  // 現職の抽出
+  // 希望勤務地の抽出
+  const desiredLocationMatch = body.match(/(?:希望勤務地)[：:\s]*([^\n\r<]+)/);
+  if (desiredLocationMatch) data.desired_work_location = removeHtml(desiredLocationMatch[1].trim());
+
+  // 希望職種の抽出
+  const desiredJobMatch = body.match(/(?:希望職種)[：:\s]*([^\n\r<]+)/);
+  if (desiredJobMatch) data.desired_job_type = removeHtml(desiredJobMatch[1].trim());
+
+  // 最終学歴の抽出
+  const educationMatch = body.match(/(?:最終学歴)[：:\s]*([^\n\r<]+)/);
+  if (educationMatch) data.final_education = removeHtml(educationMatch[1].trim());
+
+  // 就業開始までの期間の抽出
+  const startPeriodMatch = body.match(/(?:就業開始までの期間)[：:\s]*([^\n\r<]+)/);
+  if (startPeriodMatch) data.employment_start_period = removeHtml(startPeriodMatch[1].trim());
+
+  // 現在の就業形態の抽出
+  const employmentTypeMatch = body.match(/(?:現在の就業形態)[：:\s]*([^\n\r<]+)/);
+  if (employmentTypeMatch) data.current_job_type = removeHtml(employmentTypeMatch[1].trim());
+
+  // 自動車免許の有無の抽出
+  const licenseMatch = body.match(/(?:自動車免許の有無)[：:\s]*(はい|いいえ|あり|なし|有|無)/);
+  if (licenseMatch) {
+    const licenseValue = licenseMatch[1];
+    data.drivers_license = (licenseValue === 'はい' || licenseValue === 'あり' || licenseValue === '有');
+  }
+
+  // 現職・会社名の抽出（roxxメールでは通常含まれないが念のため）
   const companyMatch = body.match(/(?:現職|会社名|勤務先)[：:\s]*([^\n\r<]+)/);
   if (companyMatch) data.current_company = removeHtml(companyMatch[1].trim());
+
+  // 住所の抽出（含まれる場合）
+  const addressMatch = body.match(/(?:住所)[：:\s]*([^\n\r<]+)/);
+  if (addressMatch) data.address = removeHtml(addressMatch[1].trim());
+
+  // 希望年収の抽出（「400万円」「400〜500万円」形式）
+  const salaryMatch = body.match(/(?:希望年収)[：:\s]*(\d+)(?:〜|～|-)?(\d+)?(?:万円)?/);
+  if (salaryMatch) {
+    if (salaryMatch[2]) {
+      // 範囲指定の場合は上限値を採用
+      data.desired_salary = parseInt(salaryMatch[2]) * 10000;
+    } else {
+      data.desired_salary = parseInt(salaryMatch[1]) * 10000;
+    }
+  }
+
+  // 面談可能時間/繋がり易い時間帯の抽出
+  const availableTimeMatch = body.match(/(?:繋がり易い時間帯|面談可能時間|連絡可能時間)[：:\s]*([^\n\r<]+)/);
+  if (availableTimeMatch) data.available_time = removeHtml(availableTimeMatch[1].trim());
 
   return data;
 }
@@ -391,9 +481,20 @@ function sendToWebhook(customerData) {
   const payload = {
     name: customerData.name,
     email: customerData.email || '',
+    furigana: customerData.furigana || '',
+    gender: customerData.gender || '',
     phone_number: customerData.phone_number || '',
     age: customerData.age || null,
+    address: customerData.address || '',
+    desired_work_location: customerData.desired_work_location || '',
+    desired_job_type: customerData.desired_job_type || '',
+    desired_salary: customerData.desired_salary || null,
+    final_education: customerData.final_education || '',
+    employment_start_period: customerData.employment_start_period || '',
+    current_job_type: customerData.current_job_type || '',
     current_company: customerData.current_company || '',
+    drivers_license: customerData.drivers_license !== undefined ? customerData.drivers_license : null,
+    available_time: customerData.available_time || '',
     inflow_date: customerData.inflow_date || new Date().toISOString(),
     media: customerData.media || 'Gmail',
     priority: '中'
@@ -502,28 +603,40 @@ function insertCustomerDirectly(customerData) {
     }
   }
 
-  // 新規顧客を登録（DBに存在するカラムのみ）
+  // 新規顧客を登録（全フィールド対応）
   const insertData = {
     user_id: DEFAULT_USER_ID,
     name: customerData.name,
     email: customerData.email || null,
+    furigana: customerData.furigana || null,
+    gender: customerData.gender || null,
     phone_number: customerData.phone_number || null,
     age: customerData.age || null,
+    address: customerData.address || null,
+    desired_work_location: customerData.desired_work_location || null,
+    desired_job_type: customerData.desired_job_type || null,
+    desired_salary: customerData.desired_salary || null,
+    final_education: customerData.final_education || null,
+    employment_start_period: customerData.employment_start_period || null,
+    current_job_type: customerData.current_job_type || null,
     current_company: customerData.current_company || null,
+    drivers_license: customerData.drivers_license !== undefined ? customerData.drivers_license : null,
+    available_time: customerData.available_time || null,
     inflow_date: customerData.inflow_date || new Date().toISOString(),
     media: customerData.media || 'Gmail'
   };
 
   try {
+    // upsertを使用（重複時は更新、新規時は挿入）
     const insertResp = UrlFetchApp.fetch(
-      SUPABASE_URL + '/rest/v1/customers',
+      SUPABASE_URL + '/rest/v1/customers?on_conflict=email',
       {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
           'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
           'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Prefer': 'return=representation,resolution=merge-duplicates'
         },
         payload: JSON.stringify(insertData),
         muteHttpExceptions: true
@@ -536,11 +649,26 @@ function insertCustomerDirectly(customerData) {
     if (statusCode >= 200 && statusCode < 300) {
       Logger.log('直接DB登録成功: ' + responseText);
 
-      // 登録した顧客のIDを取得してステータスレコードを作成
+      // 登録した顧客のIDを取得してステータスレコードを作成（存在しない場合のみ）
       const insertedCustomer = JSON.parse(responseText);
       if (insertedCustomer && insertedCustomer.length > 0) {
         const customerId = insertedCustomer[0].id;
-        createDefaultStatus(customerId, SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        // ステータスが既にあるかチェック
+        const statusCheckResp = UrlFetchApp.fetch(
+          SUPABASE_URL + '/rest/v1/statuses?customer_id=eq.' + customerId + '&select=id',
+          {
+            method: 'GET',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+            },
+            muteHttpExceptions: true
+          }
+        );
+        const existingStatus = JSON.parse(statusCheckResp.getContentText());
+        if (!existingStatus || existingStatus.length === 0) {
+          createDefaultStatus(customerId, SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        }
       }
 
       return true;
@@ -752,7 +880,11 @@ function processUnprocessedEmails(maxCount = 20) {
  */
 function testCodeVersion() {
   Logger.log('=== コードバージョン確認 ===');
-  Logger.log('最終更新: 2025-12-01 v2');
+  Logger.log('最終更新: 2025-12-03 v3');
+  Logger.log('extractCustomerData関数は以下を抽出します:');
+  Logger.log('  - 基本情報: 氏名, ふりがな, 性別, 年齢, メール, 電話番号');
+  Logger.log('  - 希望条件: 希望勤務地, 希望職種, 希望年収');
+  Logger.log('  - その他: 最終学歴, 就業開始までの期間, 現在の就業形態, 自動車免許');
   Logger.log('isCandidateEmail関数は以下をチェックします:');
   Logger.log('  - 件名キーワード: 送客NEXT, Zキャリア, 送客ナビ, 求職者応募通知');
   Logger.log('  - 送信元: snapjob_ad@roxx.co.jp, roxx.co.jp など');
@@ -1188,4 +1320,667 @@ function processTodaysEmails() {
 
   Logger.log('=== 処理完了: ' + processedCount + '件 ===');
   return processedCount;
+}
+
+/**
+ * パース機能のテスト
+ * 実際のroxxメールフォーマットでextractCustomerDataが正しく動作するか検証
+ */
+function testExtractCustomerData() {
+  Logger.log('=== extractCustomerData テスト ===');
+
+  // roxxメールの実際のフォーマットに基づくテストデータ
+  const testEmailBody = `株式会社頂
+小宮山様
+
+お世話になります。送客NEXT運営事務局です。
+送客NEXT経由でのご応募がございましたので、
+下記通り通知させていただきます。
+
+▼登録情報
+応募日時：2025年12月03日 00時57分
+氏名：廣中 璃音
+ふりがな：ひろなか りおん
+性別：女性
+年齢：18歳
+メールアドレス：rion12242006@icloud.com
+電話番号：09044165166
+希望勤務地：千葉
+希望職種：接客・サービス業
+最終学歴：高校卒業
+就業開始までの期間：できるだけ早く
+現在の就業形態：パート・アルバイト
+自動車免許の有無：いいえ
+
+どうぞ宜しくお願い致します。`;
+
+  const result = extractCustomerData(testEmailBody);
+
+  Logger.log('抽出結果:');
+  Logger.log('  name: ' + result.name);
+  Logger.log('  furigana: ' + result.furigana);
+  Logger.log('  gender: ' + result.gender);
+  Logger.log('  age: ' + result.age);
+  Logger.log('  email: ' + result.email);
+  Logger.log('  phone_number: ' + result.phone_number);
+  Logger.log('  desired_work_location: ' + result.desired_work_location);
+  Logger.log('  desired_job_type: ' + result.desired_job_type);
+  Logger.log('  final_education: ' + result.final_education);
+  Logger.log('  employment_start_period: ' + result.employment_start_period);
+  Logger.log('  current_job_type: ' + result.current_job_type);
+  Logger.log('  drivers_license: ' + result.drivers_license);
+
+  // 検証
+  const expectedValues = {
+    name: '廣中 璃音',
+    furigana: 'ひろなか りおん',
+    gender: '女性',
+    age: 18,
+    email: 'rion12242006@icloud.com',
+    phone_number: '09044165166',
+    desired_work_location: '千葉',
+    desired_job_type: '接客・サービス業',
+    final_education: '高校卒業',
+    employment_start_period: 'できるだけ早く',
+    current_job_type: 'パート・アルバイト',
+    drivers_license: false
+  };
+
+  Logger.log('');
+  Logger.log('=== 検証結果 ===');
+  let allPassed = true;
+  for (const [key, expected] of Object.entries(expectedValues)) {
+    const actual = result[key];
+    const passed = actual === expected;
+    if (!passed) allPassed = false;
+    Logger.log(key + ': ' + (passed ? '✓' : '✗ 期待値=' + expected + ', 実際=' + actual));
+  }
+
+  Logger.log('');
+  Logger.log(allPassed ? '=== 全テスト成功 ===' : '=== テスト失敗あり ===');
+  return allPassed;
+}
+
+/**
+ * 既存顧客データを全フィールド更新
+ * メールアドレスで顧客を特定し、抽出した全フィールドで更新
+ */
+function updateCustomerAllFields(customerData, supabaseUrl, serviceKey) {
+  if (!customerData.email) {
+    Logger.log('エラー: メールアドレスがありません');
+    return { success: false, reason: 'no_email' };
+  }
+
+  // 更新データを構築（nullでないフィールドのみ）
+  const updateData = {};
+
+  if (customerData.name) updateData.name = customerData.name;
+  if (customerData.furigana) updateData.furigana = customerData.furigana;
+  if (customerData.gender) updateData.gender = customerData.gender;
+  if (customerData.age) updateData.age = customerData.age;
+  if (customerData.phone_number) updateData.phone_number = customerData.phone_number;
+  if (customerData.address) updateData.address = customerData.address;
+  if (customerData.desired_work_location) updateData.desired_work_location = customerData.desired_work_location;
+  if (customerData.desired_job_type) updateData.desired_job_type = customerData.desired_job_type;
+  if (customerData.desired_salary) updateData.desired_salary = customerData.desired_salary;
+  if (customerData.final_education) updateData.final_education = customerData.final_education;
+  if (customerData.employment_start_period) updateData.employment_start_period = customerData.employment_start_period;
+  if (customerData.current_job_type) updateData.current_job_type = customerData.current_job_type;
+  if (customerData.current_company) updateData.current_company = customerData.current_company;
+  if (customerData.drivers_license !== undefined) updateData.drivers_license = customerData.drivers_license;
+  if (customerData.available_time) updateData.available_time = customerData.available_time;
+  if (customerData.inflow_date) updateData.inflow_date = customerData.inflow_date;
+  if (customerData.media) updateData.media = customerData.media;
+
+  try {
+    const response = UrlFetchApp.fetch(
+      supabaseUrl + '/rest/v1/customers?email=eq.' + encodeURIComponent(customerData.email),
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': serviceKey,
+          'Authorization': 'Bearer ' + serviceKey,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        payload: JSON.stringify(updateData),
+        muteHttpExceptions: true
+      }
+    );
+
+    const statusCode = response.getResponseCode();
+    const responseText = response.getContentText();
+
+    if (statusCode >= 200 && statusCode < 300) {
+      const result = JSON.parse(responseText);
+      if (result && result.length > 0) {
+        return { success: true, customer: result[0] };
+      } else {
+        return { success: false, reason: 'not_found' };
+      }
+    } else {
+      Logger.log('更新エラー: ' + responseText);
+      return { success: false, reason: 'api_error', error: responseText };
+    }
+  } catch (error) {
+    Logger.log('更新例外: ' + error.message);
+    return { success: false, reason: 'exception', error: error.message };
+  }
+}
+
+/**
+ * 1件のroxxメールを再処理してDBを更新（テスト用）
+ * 最新のroxxメールを1件取得して、全フィールドを再抽出・更新
+ */
+function reprocessSingleRoxxEmail() {
+  Logger.log('=== 1件再処理テスト ===');
+
+  const SUPABASE_URL = PropertiesService.getScriptProperties().getProperty('SUPABASE_URL');
+  const SUPABASE_SERVICE_KEY = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_KEY');
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('エラー: SUPABASE_URL または SUPABASE_SERVICE_KEY が設定されていません');
+    return;
+  }
+
+  // roxxからの最新メールを1件取得
+  const threads = GmailApp.search('from:snapjob_ad@roxx.co.jp OR from:snapjob@roxx.co.jp', 0, 1);
+
+  if (threads.length === 0) {
+    Logger.log('roxxからのメールが見つかりません');
+    return;
+  }
+
+  const message = threads[0].getMessages()[0];
+  const subject = message.getSubject();
+  const body = message.getPlainBody();
+  const emailDate = message.getDate();
+
+  Logger.log('件名: ' + subject);
+  Logger.log('日時: ' + emailDate);
+
+  // 全フィールドを抽出
+  const customerData = extractCustomerData(body);
+  customerData.inflow_date = emailDate.toISOString();
+  customerData.media = '送客NEXT';
+
+  Logger.log('');
+  Logger.log('=== 抽出データ ===');
+  for (const [key, value] of Object.entries(customerData)) {
+    Logger.log('  ' + key + ': ' + value);
+  }
+
+  if (!customerData.email) {
+    Logger.log('エラー: メールアドレスを抽出できませんでした');
+    return;
+  }
+
+  // 更新前のデータを取得
+  Logger.log('');
+  Logger.log('=== 更新前のDBデータ ===');
+  const beforeResp = UrlFetchApp.fetch(
+    SUPABASE_URL + '/rest/v1/customers?email=eq.' + encodeURIComponent(customerData.email) + '&select=*',
+    {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+      },
+      muteHttpExceptions: true
+    }
+  );
+  const beforeData = JSON.parse(beforeResp.getContentText());
+  if (beforeData && beforeData.length > 0) {
+    Logger.log('  furigana: ' + beforeData[0].furigana);
+    Logger.log('  gender: ' + beforeData[0].gender);
+    Logger.log('  desired_work_location: ' + beforeData[0].desired_work_location);
+    Logger.log('  desired_job_type: ' + beforeData[0].desired_job_type);
+    Logger.log('  final_education: ' + beforeData[0].final_education);
+    Logger.log('  employment_start_period: ' + beforeData[0].employment_start_period);
+    Logger.log('  current_job_type: ' + beforeData[0].current_job_type);
+    Logger.log('  drivers_license: ' + beforeData[0].drivers_license);
+  } else {
+    Logger.log('顧客がDBに存在しません: ' + customerData.email);
+    return;
+  }
+
+  // 更新実行
+  Logger.log('');
+  Logger.log('=== 更新実行 ===');
+  const result = updateCustomerAllFields(customerData, SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+  if (result.success) {
+    Logger.log('✓ 更新成功');
+    Logger.log('');
+    Logger.log('=== 更新後のDBデータ ===');
+    Logger.log('  furigana: ' + result.customer.furigana);
+    Logger.log('  gender: ' + result.customer.gender);
+    Logger.log('  desired_work_location: ' + result.customer.desired_work_location);
+    Logger.log('  desired_job_type: ' + result.customer.desired_job_type);
+    Logger.log('  final_education: ' + result.customer.final_education);
+    Logger.log('  employment_start_period: ' + result.customer.employment_start_period);
+    Logger.log('  current_job_type: ' + result.customer.current_job_type);
+    Logger.log('  drivers_license: ' + result.customer.drivers_license);
+  } else {
+    Logger.log('✗ 更新失敗: ' + result.reason);
+  }
+
+  return result;
+}
+
+/**
+ * 過去のroxxメールを全件再処理（タイムアウト対応・再開可能版）
+ * 6分制限とレート制限に対応
+ * 完了するまで繰り返し実行してください
+ */
+function reprocessAllRoxxEmails() {
+  const START_TIME = new Date().getTime();
+  const MAX_RUNTIME_MS = 5 * 60 * 1000; // 5分（6分制限より1分余裕）
+  const RATE_LIMIT_DELAY_MS = 300; // 300msの待機（レート制限対策）
+
+  Logger.log('=== roxxメール全件再処理開始 ===');
+
+  const SUPABASE_URL = PropertiesService.getScriptProperties().getProperty('SUPABASE_URL');
+  const SUPABASE_SERVICE_KEY = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_KEY');
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('エラー: SUPABASE_URL または SUPABASE_SERVICE_KEY が設定されていません');
+    return;
+  }
+
+  // 進捗を読み込み
+  const props = PropertiesService.getScriptProperties();
+  let progress = props.getProperty('reprocessRoxxProgress');
+  progress = progress ? JSON.parse(progress) : {
+    threadIndex: 0,
+    messageIndex: 0,
+    processedEmails: [],
+    stats: { updated: 0, notFound: 0, noEmail: 0, errors: 0 }
+  };
+
+  Logger.log('再開位置: thread=' + progress.threadIndex + ', message=' + progress.messageIndex);
+  Logger.log('処理済みメール数: ' + progress.processedEmails.length);
+
+  // 全送客メールを検索（roxx直接、転送メール、送客ナビ）
+  const searchQuery = 'from:snapjob_ad@roxx.co.jp OR from:snapjob@roxx.co.jp OR from:career@itadaki-career.com OR from:contact@jobseeker-navi.com';
+  const threads = GmailApp.search(searchQuery, 0, 500);
+  Logger.log('総スレッド数: ' + threads.length);
+  Logger.log('検索クエリ: ' + searchQuery);
+
+  let processedThisRun = 0;
+  let shouldStop = false;
+
+  for (let ti = progress.threadIndex; ti < threads.length && !shouldStop; ti++) {
+    const thread = threads[ti];
+    const messages = thread.getMessages();
+    const startMessage = (ti === progress.threadIndex) ? progress.messageIndex : 0;
+
+    for (let mi = startMessage; mi < messages.length && !shouldStop; mi++) {
+      // タイムアウトチェック
+      const elapsed = new Date().getTime() - START_TIME;
+      if (elapsed > MAX_RUNTIME_MS) {
+        Logger.log('⏰ タイムアウト間近。進捗を保存して停止します。');
+        progress.threadIndex = ti;
+        progress.messageIndex = mi;
+        props.setProperty('reprocessRoxxProgress', JSON.stringify(progress));
+        shouldStop = true;
+        break;
+      }
+
+      const message = messages[mi];
+      const body = message.getPlainBody();
+      const emailDate = message.getDate();
+      const subject = message.getSubject();
+
+      // 全フィールドを抽出
+      const customerData = extractCustomerData(body);
+
+      if (!customerData.email) {
+        Logger.log('スキップ（メールなし）: ' + subject.substring(0, 30));
+        progress.stats.noEmail++;
+        continue;
+      }
+
+      // 既に処理済みならスキップ
+      if (progress.processedEmails.includes(customerData.email)) {
+        continue;
+      }
+
+      // メタデータを追加
+      customerData.inflow_date = emailDate.toISOString();
+      customerData.media = '送客NEXT';
+
+      // 更新実行
+      const result = updateCustomerAllFields(customerData, SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+      if (result.success) {
+        Logger.log('✓ 更新: ' + customerData.name + ' (' + customerData.email + ')');
+        progress.stats.updated++;
+      } else if (result.reason === 'not_found') {
+        Logger.log('- 未登録: ' + customerData.email);
+        progress.stats.notFound++;
+      } else {
+        Logger.log('✗ エラー: ' + customerData.email + ' - ' + result.reason);
+        progress.stats.errors++;
+      }
+
+      // 処理済みとして記録
+      progress.processedEmails.push(customerData.email);
+      processedThisRun++;
+
+      // レート制限対策
+      Utilities.sleep(RATE_LIMIT_DELAY_MS);
+    }
+
+    // 次のスレッドに移動する際にmessageIndexをリセット
+    if (!shouldStop) {
+      progress.messageIndex = 0;
+    }
+  }
+
+  // 完了またはタイムアウト
+  if (shouldStop) {
+    Logger.log('');
+    Logger.log('=== 一時停止 ===');
+    Logger.log('今回の処理: ' + processedThisRun + '件');
+    Logger.log('累計処理済み: ' + progress.processedEmails.length + '件');
+    Logger.log('統計: 更新=' + progress.stats.updated + ', 未登録=' + progress.stats.notFound +
+               ', メールなし=' + progress.stats.noEmail + ', エラー=' + progress.stats.errors);
+    Logger.log('');
+    Logger.log('⚠️ 処理が完了していません。再度実行してください。');
+  } else {
+    // 完了 - 進捗をクリア
+    props.deleteProperty('reprocessRoxxProgress');
+    Logger.log('');
+    Logger.log('=== 全件処理完了 ===');
+    Logger.log('総処理メール数: ' + progress.processedEmails.length + '件');
+    Logger.log('統計:');
+    Logger.log('  - 更新成功: ' + progress.stats.updated + '件');
+    Logger.log('  - 未登録（新規）: ' + progress.stats.notFound + '件');
+    Logger.log('  - メールなし: ' + progress.stats.noEmail + '件');
+    Logger.log('  - エラー: ' + progress.stats.errors + '件');
+  }
+
+  return {
+    completed: !shouldStop,
+    processedThisRun: processedThisRun,
+    totalProcessed: progress.processedEmails.length,
+    stats: progress.stats
+  };
+}
+
+/**
+ * roxx再処理の進捗をリセット（最初からやり直したい場合）
+ */
+function resetReprocessRoxxProgress() {
+  PropertiesService.getScriptProperties().deleteProperty('reprocessRoxxProgress');
+  Logger.log('進捗をリセットしました。reprocessAllRoxxEmails() を実行すると最初から処理します。');
+}
+
+/**
+ * roxx再処理の進捗を確認
+ */
+function checkReprocessRoxxProgress() {
+  const progress = PropertiesService.getScriptProperties().getProperty('reprocessRoxxProgress');
+  if (progress) {
+    const p = JSON.parse(progress);
+    Logger.log('=== 再処理進捗 ===');
+    Logger.log('処理済みメール数: ' + p.processedEmails.length);
+    Logger.log('現在位置: thread=' + p.threadIndex + ', message=' + p.messageIndex);
+    Logger.log('統計: 更新=' + p.stats.updated + ', 未登録=' + p.stats.notFound +
+               ', メールなし=' + p.stats.noEmail + ', エラー=' + p.stats.errors);
+  } else {
+    Logger.log('進捗データなし（未開始または完了済み）');
+  }
+}
+
+/**
+ * 未登録顧客を新規作成（タイムアウト対応・再開可能版）
+ * reprocessAllRoxxEmailsで「未登録」となった顧客をDBに新規登録
+ * 完了するまで繰り返し実行してください
+ */
+function createUnregisteredCustomers() {
+  const START_TIME = new Date().getTime();
+  const MAX_RUNTIME_MS = 5 * 60 * 1000; // 5分（6分制限より1分余裕）
+  const RATE_LIMIT_DELAY_MS = 500; // 500msの待機（レート制限対策）
+
+  Logger.log('=== 未登録顧客の新規作成開始 ===');
+
+  const SUPABASE_URL = PropertiesService.getScriptProperties().getProperty('SUPABASE_URL');
+  const SUPABASE_SERVICE_KEY = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_KEY');
+  const DEFAULT_USER_ID = PropertiesService.getScriptProperties().getProperty('DEFAULT_USER_ID');
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !DEFAULT_USER_ID) {
+    Logger.log('エラー: SUPABASE_URL, SUPABASE_SERVICE_KEY, または DEFAULT_USER_ID が設定されていません');
+    return;
+  }
+
+  // 進捗を読み込み
+  const props = PropertiesService.getScriptProperties();
+  let progress = props.getProperty('createUnregisteredProgress');
+  progress = progress ? JSON.parse(progress) : {
+    threadIndex: 0,
+    messageIndex: 0,
+    processedEmails: [],
+    stats: { created: 0, alreadyExists: 0, noEmail: 0, errors: 0 }
+  };
+
+  Logger.log('再開位置: thread=' + progress.threadIndex + ', message=' + progress.messageIndex);
+  Logger.log('処理済みメール数: ' + progress.processedEmails.length);
+
+  // 全送客メールを検索
+  const searchQuery = 'from:snapjob_ad@roxx.co.jp OR from:snapjob@roxx.co.jp OR from:career@itadaki-career.com OR from:contact@jobseeker-navi.com';
+  const threads = GmailApp.search(searchQuery, 0, 500);
+  Logger.log('総スレッド数: ' + threads.length);
+
+  let processedThisRun = 0;
+  let shouldStop = false;
+
+  for (let ti = progress.threadIndex; ti < threads.length && !shouldStop; ti++) {
+    const thread = threads[ti];
+    const messages = thread.getMessages();
+    const startMessage = (ti === progress.threadIndex) ? progress.messageIndex : 0;
+
+    for (let mi = startMessage; mi < messages.length && !shouldStop; mi++) {
+      // タイムアウトチェック
+      const elapsed = new Date().getTime() - START_TIME;
+      if (elapsed > MAX_RUNTIME_MS) {
+        Logger.log('⏰ タイムアウト間近。進捗を保存して停止します。');
+        progress.threadIndex = ti;
+        progress.messageIndex = mi;
+        props.setProperty('createUnregisteredProgress', JSON.stringify(progress));
+        shouldStop = true;
+        break;
+      }
+
+      const message = messages[mi];
+      const body = message.getPlainBody();
+      const emailDate = message.getDate();
+      const from = message.getFrom();
+
+      // 全フィールドを抽出
+      const customerData = extractCustomerData(body);
+
+      if (!customerData.email) {
+        progress.stats.noEmail++;
+        continue;
+      }
+
+      // 既に処理済みならスキップ
+      if (progress.processedEmails.includes(customerData.email)) {
+        continue;
+      }
+
+      // DBに既に存在するかチェック
+      try {
+        const checkResp = UrlFetchApp.fetch(
+          SUPABASE_URL + '/rest/v1/customers?email=eq.' + encodeURIComponent(customerData.email) + '&select=id',
+          {
+            method: 'GET',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+            },
+            muteHttpExceptions: true
+          }
+        );
+
+        const existing = JSON.parse(checkResp.getContentText());
+        if (existing && existing.length > 0) {
+          // 既に存在する場合はスキップ
+          progress.processedEmails.push(customerData.email);
+          progress.stats.alreadyExists++;
+          continue;
+        }
+
+        // 新規作成
+        // メタデータを追加
+        customerData.inflow_date = emailDate.toISOString();
+        customerData.media = getMediaFromSender(from, body);
+
+        const insertData = {
+          user_id: DEFAULT_USER_ID,
+          name: customerData.name,
+          email: customerData.email || null,
+          furigana: customerData.furigana || null,
+          gender: customerData.gender || null,
+          phone_number: customerData.phone_number || null,
+          age: customerData.age || null,
+          address: customerData.address || null,
+          desired_work_location: customerData.desired_work_location || null,
+          desired_job_type: customerData.desired_job_type || null,
+          desired_salary: customerData.desired_salary || null,
+          final_education: customerData.final_education || null,
+          employment_start_period: customerData.employment_start_period || null,
+          current_job_type: customerData.current_job_type || null,
+          current_company: customerData.current_company || null,
+          drivers_license: customerData.drivers_license !== undefined ? customerData.drivers_license : null,
+          available_time: customerData.available_time || null,
+          inflow_date: customerData.inflow_date,
+          media: customerData.media
+        };
+
+        // upsertを使用（重複時は更新、新規時は挿入）
+        // on_conflict=email で重複時の動作を制御
+        const insertResp = UrlFetchApp.fetch(
+          SUPABASE_URL + '/rest/v1/customers?on_conflict=email',
+          {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation,resolution=merge-duplicates'
+            },
+            payload: JSON.stringify(insertData),
+            muteHttpExceptions: true
+          }
+        );
+
+        const statusCode = insertResp.getResponseCode();
+        if (statusCode >= 200 && statusCode < 300) {
+          const insertedCustomer = JSON.parse(insertResp.getContentText());
+          if (insertedCustomer && insertedCustomer.length > 0) {
+            // 新規作成の場合のみステータスレコードを作成（idが新しいかどうかで判定は難しいので、
+            // ステータスが既にあるかをチェック）
+            const customerId = insertedCustomer[0].id;
+            const statusCheckResp = UrlFetchApp.fetch(
+              SUPABASE_URL + '/rest/v1/statuses?customer_id=eq.' + customerId + '&select=id',
+              {
+                method: 'GET',
+                headers: {
+                  'apikey': SUPABASE_SERVICE_KEY,
+                  'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+                },
+                muteHttpExceptions: true
+              }
+            );
+            const existingStatus = JSON.parse(statusCheckResp.getContentText());
+            if (!existingStatus || existingStatus.length === 0) {
+              createDefaultStatus(customerId, SUPABASE_URL, SUPABASE_SERVICE_KEY);
+              Logger.log('✓ 新規作成: ' + customerData.name + ' (' + customerData.email + ')');
+              progress.stats.created++;
+            } else {
+              Logger.log('✓ 更新（upsert）: ' + customerData.name + ' (' + customerData.email + ')');
+              progress.stats.alreadyExists++;
+            }
+          }
+        } else {
+          Logger.log('✗ 作成エラー: ' + customerData.email + ' - ' + insertResp.getContentText());
+          progress.stats.errors++;
+        }
+
+      } catch (error) {
+        Logger.log('✗ 例外: ' + customerData.email + ' - ' + error.message);
+        progress.stats.errors++;
+      }
+
+      // 処理済みとして記録
+      progress.processedEmails.push(customerData.email);
+      processedThisRun++;
+
+      // レート制限対策
+      Utilities.sleep(RATE_LIMIT_DELAY_MS);
+    }
+
+    // 次のスレッドに移動する際にmessageIndexをリセット
+    if (!shouldStop) {
+      progress.messageIndex = 0;
+    }
+  }
+
+  // 完了またはタイムアウト
+  if (shouldStop) {
+    Logger.log('');
+    Logger.log('=== 一時停止 ===');
+    Logger.log('今回の処理: ' + processedThisRun + '件');
+    Logger.log('累計処理済み: ' + progress.processedEmails.length + '件');
+    Logger.log('統計: 新規作成=' + progress.stats.created + ', 既存=' + progress.stats.alreadyExists +
+               ', メールなし=' + progress.stats.noEmail + ', エラー=' + progress.stats.errors);
+    Logger.log('');
+    Logger.log('⚠️ 処理が完了していません。再度実行してください。');
+  } else {
+    // 完了 - 進捗をクリア
+    props.deleteProperty('createUnregisteredProgress');
+    Logger.log('');
+    Logger.log('=== 全件処理完了 ===');
+    Logger.log('総処理メール数: ' + progress.processedEmails.length + '件');
+    Logger.log('統計:');
+    Logger.log('  - 新規作成: ' + progress.stats.created + '件');
+    Logger.log('  - 既存（スキップ）: ' + progress.stats.alreadyExists + '件');
+    Logger.log('  - メールなし: ' + progress.stats.noEmail + '件');
+    Logger.log('  - エラー: ' + progress.stats.errors + '件');
+  }
+
+  return {
+    completed: !shouldStop,
+    processedThisRun: processedThisRun,
+    totalProcessed: progress.processedEmails.length,
+    stats: progress.stats
+  };
+}
+
+/**
+ * 未登録顧客作成の進捗をリセット
+ */
+function resetCreateUnregisteredProgress() {
+  PropertiesService.getScriptProperties().deleteProperty('createUnregisteredProgress');
+  Logger.log('進捗をリセットしました。createUnregisteredCustomers() を実行すると最初から処理します。');
+}
+
+/**
+ * 未登録顧客作成の進捗を確認
+ */
+function checkCreateUnregisteredProgress() {
+  const progress = PropertiesService.getScriptProperties().getProperty('createUnregisteredProgress');
+  if (progress) {
+    const p = JSON.parse(progress);
+    Logger.log('=== 未登録顧客作成進捗 ===');
+    Logger.log('処理済みメール数: ' + p.processedEmails.length);
+    Logger.log('現在位置: thread=' + p.threadIndex + ', message=' + p.messageIndex);
+    Logger.log('統計: 新規作成=' + p.stats.created + ', 既存=' + p.stats.alreadyExists +
+               ', メールなし=' + p.stats.noEmail + ', エラー=' + p.stats.errors);
+  } else {
+    Logger.log('進捗データなし（未開始または完了済み）');
+  }
 }

@@ -70,3 +70,4 @@ COMMENT ON COLUMN talk_scripts.content IS 'スクリプト本文';
 COMMENT ON COLUMN talk_scripts.description IS '説明・補足';
 COMMENT ON COLUMN talk_scripts.sort_order IS '表示順';
 COMMENT ON COLUMN talk_scripts.is_active IS '有効フラグ';
+  

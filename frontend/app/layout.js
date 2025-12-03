@@ -2,6 +2,7 @@ import "./globals.css";
 import AntdRegistry from "@/components/AntdRegistry";
 import AppLayout from "@/components/AppLayout";
 import { AuthProvider } from "@/lib/AuthContext";
+import { PageSyncProvider } from "@/contexts/PageSyncContext";
 
 export const metadata = {
   title: "Itadaki CRM",
@@ -14,7 +15,9 @@ export default function RootLayout({ children }) {
       <body>
         <AntdRegistry>
           <AuthProvider>
-            <AppLayout>{children}</AppLayout>
+            <PageSyncProvider>
+              <AppLayout>{children}</AppLayout>
+            </PageSyncProvider>
           </AuthProvider>
         </AntdRegistry>
       </body>
