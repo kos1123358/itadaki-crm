@@ -263,7 +263,7 @@ export default function CallWork() {
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   // ページ同期フック
-  const { broadcastCustomer, onCustomerChange, syncEnabled, isLeader } = usePageSync();
+  const { broadcastCustomer, syncedCustomerId, syncEnabled, isLeader } = usePageSync();
 
   // JSON文字列または配列を配列に変換するヘルパー関数
   const parseArrayField = (value) => {
@@ -293,17 +293,18 @@ export default function CallWork() {
 
   // ページ同期: 他端末からの顧客変更を受信（フォロワーモードの時）
   useEffect(() => {
-    onCustomerChange((customerId) => {
-      if (!isLeader && customers.length > 0) {
-        const targetIndex = customers.findIndex(c => c.id === customerId);
+    if (!isLeader && syncedCustomerId && customers.length > 0) {
+      // 現在の顧客と異なる場合のみ同期
+      if (currentCustomer?.id !== syncedCustomerId) {
+        const targetIndex = customers.findIndex(c => c.id === syncedCustomerId);
         if (targetIndex !== -1) {
           setCurrentIndex(targetIndex);
           setCurrentCustomer(customers[targetIndex]);
           message.info(`他端末から顧客が同期されました: ${customers[targetIndex].name}`);
         }
       }
-    });
-  }, [onCustomerChange, isLeader, customers]);
+    }
+  }, [syncedCustomerId, isLeader, customers, currentCustomer?.id]);
 
   // リアルタイム購読: 新規顧客登録を検知
   const handleRealtimeInsert = useCallback((newCustomer) => {
