@@ -12,8 +12,11 @@ import {
   LogoutOutlined,
   PhoneFilled,
   TeamOutlined,
+  SyncOutlined,
+  DisconnectOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/lib/AuthContext';
+import { usePageSync } from '@/hooks/usePageSync';
 
 const { Header, Content, Sider } = Layout;
 
@@ -41,6 +44,7 @@ export default function AppLayout({ children }) {
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { user, loading, signOut } = useAuth();
+  const { syncEnabled, toggleSync, isLeader, setLeaderMode } = usePageSync();
 
   const isLoginPage = pathname === '/login';
 
@@ -149,12 +153,40 @@ export default function AppLayout({ children }) {
             Itadaki CRM
           </div>
         </div>
-        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#87d068' }} />
-            <span style={{ color: 'white' }}>{user?.email}</span>
-          </div>
-        </Dropdown>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Button
+            type="text"
+            icon={syncEnabled ? <SyncOutlined spin={!isLeader} /> : <DisconnectOutlined />}
+            onClick={toggleSync}
+            title={syncEnabled ? (isLeader ? '同期中（リーダー）' : '同期中（フォロワー）') : '同期オフ'}
+            style={{
+              color: syncEnabled ? '#52c41a' : '#999',
+              fontSize: '18px',
+            }}
+          />
+          {syncEnabled && (
+            <Button
+              type="text"
+              size="small"
+              onClick={() => setLeaderMode(!isLeader)}
+              style={{
+                color: 'white',
+                fontSize: '12px',
+                padding: '0 8px',
+                background: isLeader ? '#1890ff' : '#722ed1',
+                borderRadius: '4px',
+              }}
+            >
+              {isLeader ? 'リード' : 'フォロー'}
+            </Button>
+          )}
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#87d068' }} />
+              <span style={{ color: 'white' }}>{user?.email}</span>
+            </div>
+          </Dropdown>
+        </div>
       </Header>
       <Layout>
         <Sider
