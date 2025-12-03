@@ -6,6 +6,7 @@ import { Card, Descriptions, Button, Form, Select, Input, DatePicker, Space, Tag
 import { PhoneOutlined, SaveOutlined, StepForwardOutlined, CopyOutlined, ClockCircleOutlined, UserOutlined, HistoryOutlined, EditOutlined, CheckOutlined, PhoneFilled, StopOutlined, TrophyOutlined, EnvironmentOutlined, DollarOutlined, BellOutlined, BookOutlined, FileTextOutlined } from '@ant-design/icons';
 import { customerAPI, callHistoryAPI, statusAPI, jobAPI, userAPI, talkScriptAPI } from '@/lib/api';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { usePageSync } from '@/hooks/usePageSync';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -261,6 +262,9 @@ export default function CallWork() {
   const [scriptCategories, setScriptCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  // ページ同期フック
+  const { broadcastCustomer, onCustomerChange, syncEnabled, isLeader } = usePageSync();
+
   // JSON文字列または配列を配列に変換するヘルパー関数
   const parseArrayField = (value) => {
     if (Array.isArray(value)) return value;
@@ -279,6 +283,27 @@ export default function CallWork() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // ページ同期: 現在の顧客を他端末に配信（リーダーモードの時）
+  useEffect(() => {
+    if (currentCustomer?.id && isLeader && syncEnabled) {
+      broadcastCustomer(currentCustomer.id);
+    }
+  }, [currentCustomer?.id, isLeader, syncEnabled, broadcastCustomer]);
+
+  // ページ同期: 他端末からの顧客変更を受信（フォロワーモードの時）
+  useEffect(() => {
+    onCustomerChange((customerId) => {
+      if (!isLeader && customers.length > 0) {
+        const targetIndex = customers.findIndex(c => c.id === customerId);
+        if (targetIndex !== -1) {
+          setCurrentIndex(targetIndex);
+          setCurrentCustomer(customers[targetIndex]);
+          message.info(`他端末から顧客が同期されました: ${customers[targetIndex].name}`);
+        }
+      }
+    });
+  }, [onCustomerChange, isLeader, customers]);
 
   // リアルタイム購読: 新規顧客登録を検知
   const handleRealtimeInsert = useCallback((newCustomer) => {
