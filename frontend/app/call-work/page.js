@@ -293,14 +293,25 @@ export default function CallWork() {
 
   // ページ同期: 他端末からの顧客変更を受信（フォロワーモードの時）
   useEffect(() => {
+    console.log('[CallWork Sync] Effect triggered:', { isLeader, syncedCustomerId, customersLength: customers.length, currentCustomerId: currentCustomer?.id });
+
     if (!isLeader && syncedCustomerId && customers.length > 0) {
-      // 現在の顧客と異なる場合のみ同期
-      if (currentCustomer?.id !== syncedCustomerId) {
-        const targetIndex = customers.findIndex(c => c.id === syncedCustomerId);
+      // 型を揃えて比較（Number型に統一）
+      const syncedId = Number(syncedCustomerId);
+      const currentId = currentCustomer?.id ? Number(currentCustomer.id) : null;
+
+      console.log('[CallWork Sync] Comparing:', { syncedId, currentId, shouldSync: currentId !== syncedId });
+
+      if (currentId !== syncedId) {
+        const targetIndex = customers.findIndex(c => Number(c.id) === syncedId);
+        console.log('[CallWork Sync] Found target index:', targetIndex);
+
         if (targetIndex !== -1) {
           setCurrentIndex(targetIndex);
           setCurrentCustomer(customers[targetIndex]);
           message.info(`他端末から顧客が同期されました: ${customers[targetIndex].name}`);
+        } else {
+          console.log('[CallWork Sync] Customer not found in list. Available IDs:', customers.map(c => c.id));
         }
       }
     }

@@ -22,10 +22,26 @@ export function usePageSync() {
   const [syncedCustomerId, setSyncedCustomerId] = useState(null);
   const [syncSession, setSyncSession] = useState(null);
 
+  // Refs to avoid stale closures in realtime callbacks
   const channelRef = useRef(null);
   const isNavigatingRef = useRef(false);
   const debounceRef = useRef(null);
-  const onCustomerChangeRef = useRef(null);
+  const isLeaderRef = useRef(isLeader);
+  const syncedCustomerIdRef = useRef(syncedCustomerId);
+  const pathnameRef = useRef(pathname);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    isLeaderRef.current = isLeader;
+  }, [isLeader]);
+
+  useEffect(() => {
+    syncedCustomerIdRef.current = syncedCustomerId;
+  }, [syncedCustomerId]);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   // Initialize or fetch sync session
   const initSyncSession = useCallback(async () => {
@@ -46,7 +62,8 @@ export function usePageSync() {
       if (existing) {
         setSyncSession(existing);
         setSyncEnabled(existing.sync_enabled);
-        setSyncedCustomerId(existing.current_customer_id);
+        const customerId = existing.current_customer_id ? Number(existing.current_customer_id) : null;
+        setSyncedCustomerId(customerId);
         return existing;
       }
 
@@ -106,13 +123,16 @@ export function usePageSync() {
 
   // Broadcast customer selection (for use in pages like call-work)
   const broadcastCustomer = useCallback(async (customerId) => {
-    if (!user?.id || !syncEnabled || !isLeader) return;
+    if (!user?.id || !syncEnabled) return;
+    // Use ref to check current leader status
+    if (!isLeaderRef.current) return;
 
     try {
+      console.log('[PageSync] Broadcasting customer:', customerId);
       const { error } = await supabase
         .from('user_sync_sessions')
         .update({
-          current_path: pathname,
+          current_path: pathnameRef.current,
           current_customer_id: customerId,
         })
         .eq('user_id', user.id);
@@ -120,17 +140,12 @@ export function usePageSync() {
       if (error) {
         console.error('[PageSync] Error broadcasting customer:', error);
       } else {
-        console.log('[PageSync] Broadcasted customer:', customerId);
+        console.log('[PageSync] Successfully broadcasted customer:', customerId);
       }
     } catch (error) {
       console.error('[PageSync] Broadcast customer error:', error);
     }
-  }, [user?.id, syncEnabled, isLeader, pathname]);
-
-  // Register callback for customer changes
-  const onCustomerChange = useCallback((callback) => {
-    onCustomerChangeRef.current = callback;
-  }, []);
+  }, [user?.id, syncEnabled]);
 
   // Toggle sync enabled/disabled
   const toggleSync = useCallback(async () => {
@@ -156,6 +171,7 @@ export function usePageSync() {
   }, [user?.id, syncEnabled]);
 
   const setLeaderMode = useCallback((leader) => {
+    console.log('[PageSync] Setting leader mode:', leader);
     setIsLeader(leader);
   }, []);
 
@@ -166,11 +182,12 @@ export function usePageSync() {
     }
   }, [user?.id, initSyncSession]);
 
-  // Subscribe to realtime changes
+  // Subscribe to realtime changes - only recreate when user or syncEnabled changes
   useEffect(() => {
     if (!user?.id || !syncEnabled) return;
 
     const channelName = `page-sync-${user.id}-${Date.now()}`;
+    console.log('[PageSync] Creating channel:', channelName);
 
     const channel = supabase
       .channel(channelName)
@@ -183,16 +200,33 @@ export function usePageSync() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
+          // Use refs to get current values (not stale closure values)
+          const currentIsLeader = isLeaderRef.current;
+          const currentSyncedCustomerId = syncedCustomerIdRef.current;
+          const currentPathname = pathnameRef.current;
+
+          console.log('[PageSync] Received realtime update:', {
+            payload: payload.new,
+            currentIsLeader,
+            currentSyncedCustomerId,
+            currentPathname,
+          });
+
           // Skip if this device is leading
-          if (isLeader) return;
+          if (currentIsLeader) {
+            console.log('[PageSync] Skipping - this device is leader');
+            return;
+          }
 
           const newPath = payload.new?.current_path;
-          const newCustomerId = payload.new?.current_customer_id;
+          const newCustomerId = payload.new?.current_customer_id
+            ? Number(payload.new.current_customer_id)
+            : null;
 
-          console.log('[PageSync] Received update:', { newPath, newCustomerId, currentPath: pathname });
+          console.log('[PageSync] Parsed values:', { newPath, newCustomerId });
 
           // Handle path change
-          if (newPath && newPath !== pathname && !isNavigatingRef.current) {
+          if (newPath && newPath !== currentPathname && !isNavigatingRef.current) {
             console.log('[PageSync] Navigating to:', newPath);
             isNavigatingRef.current = true;
             router.push(newPath);
@@ -202,14 +236,9 @@ export function usePageSync() {
           }
 
           // Handle customer ID change
-          if (newCustomerId !== syncedCustomerId) {
-            console.log('[PageSync] Customer changed:', newCustomerId);
+          if (newCustomerId !== currentSyncedCustomerId) {
+            console.log('[PageSync] Customer changed from', currentSyncedCustomerId, 'to', newCustomerId);
             setSyncedCustomerId(newCustomerId);
-
-            // Call registered callback
-            if (onCustomerChangeRef.current && newCustomerId) {
-              onCustomerChangeRef.current(newCustomerId);
-            }
           }
         }
       )
@@ -220,11 +249,12 @@ export function usePageSync() {
     channelRef.current = channel;
 
     return () => {
+      console.log('[PageSync] Removing channel:', channelName);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [user?.id, syncEnabled, isLeader, pathname, syncedCustomerId, router]);
+  }, [user?.id, syncEnabled, router]); // Removed isLeader, pathname, syncedCustomerId from deps
 
   // Broadcast path changes when navigating (only if leader)
   useEffect(() => {
@@ -249,6 +279,5 @@ export function usePageSync() {
     syncedCustomerId,
     syncSession,
     broadcastCustomer,
-    onCustomerChange,
   };
 }
