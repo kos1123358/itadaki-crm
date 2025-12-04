@@ -284,7 +284,7 @@ serve(async (req) => {
     // ステータスデータを準備
     const statusData = {
       customer_id: customer.id,
-      current_status: '新規登録',
+      current_status: '未接触',
       priority: '中',
       status_updated_date: new Date().toISOString(),
     }
